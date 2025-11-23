@@ -1796,182 +1796,24 @@ def f0_function(z,OmM0):
     return f0
 
 
-
-
-def Qij(ki, kj, xij, mui, muj, f, bisp_nuis_params):
-
-    b1, b2, bs, c1, c2, Bshot, Pshot, X_FoG_pk = bisp_nuis_params
-
-    fi=f; fj=f; fij=f;
-    Z1i = b1 + fi * mui**2;
-    Z1j = b1 + fj * muj**2;
-    # Z1efti = Z1i - c1*(ki*mui)**2;
-    # Z1eftj = Z1j - c1*(kj*muj)**2 ;
+def interpolation_b(k_out, k_in, pk_in, method='cubic'):
     
-    kmu = ki*mui + kj*muj;
-    mu2 = kmu**2 / (ki**2 + kj**2 + 2*ki*kj*xij);
-    crossterm = 1.0/2.0*kmu * ( fj * muj / kj * Z1i  +  fi * mui / ki * Z1j  ) 
-
-
-    advection = xij/2.0 *(ki/kj + kj/ki)
-    F2 = 5.0/7.0 + 2.0/7.0 * xij**2 + advection
-    G2 = 3.0/7.0 + 4.0/7.0 * xij**2 + advection
-    
-    # Z2 = b1*F2 + fij*mu2*G2 + crossterm + b2/2.0 +  bs/2.0 * (xij**2 - 1.0/3.0);
-    # Z2 = b1*F2 + crossterm + b2/2.0 +  bs/2.0 * (xij**2 - 1.0/3.0);
-    # Z2 = 0 + b2/2.0 +  bs/2.0 * (xij**2 - 1.0/3.0);
-    # Z2 = 0
-    Z2 = b1*F2 + fij*mu2*G2 + crossterm + b2/2.0 +  bs/2.0 * (xij**2 - 1.0/3.0);
-    Z2 = fij*mu2*G2
-    
-    # Qij = 2*Z1efti*Z1eftj * Z2;
-    Qij = 2 * Z2;
-
-    
-    return  Qij
-
-
-def Z2(ki, kj, xij, mui, muj, f, b1, b2, bs):
-    """
-    Z2 function translated from Mathematica
-    
-    Parameters:
-    ki, kj: wave numbers
-    xij: cosine of angle between ki and kj
-    mui, muj: direction cosines
-    f: growth rate parameter
-    b1, b2, bs: bias parameters
-    """
-
-    term1 = b2/2 + bs/2 * (xij**2 - 1/3)
-    
-    term2 = (ki*mui + kj*muj)/2 * (mui/ki * f * (b1 + f * muj**2) + muj/kj * f * (b1 + f * mui**2))
-    
-    F2= 5/7 + xij/2 * (ki/kj + kj/ki) + 2/7 * xij**2
-    term3 = b1 * F2
-
-    G2 = 5/7 + xij/2 * (ki/kj + kj/ki) + 2/7 * xij**2
-    term4 = f * (ki*mui + kj*muj)**2 / (ki**2 + kj**2 + 2 * ki * kj * xij) * G2 
-    
-    return term1 + term2 + term3 + term4
-
-
-
-# You'll need to define the F2 and G2 functions
-def F2(ki, kj, xij):
-    """
-    F2 kernel function - you'll need to implement the specific form
-    """
-    # Placeholder - replace with actual implementation
-    return 5/7 + xij/2 * (ki/kj + kj/ki) + 2/7 * xij**2
-
-def G2(ki, kj, xij):
-    """
-    G2 kernel function - you'll need to implement the specific form
-    """
-    # Placeholder - replace with actual implementation
-    return 3/7 + xij/2 * (ki/kj + kj/ki) + 4/7 * xij**2
-
-def Z2ij(ki, kj, xij, mui, muj, f, bisp_nuis_params):
-
-    b1, b2, bs, c1, c2, Bshot, Pshot, X_FoG_pk = bisp_nuis_params
-    
-    muij 
-
-
-    
-    return  Z2ij
-
-
-
-
-def bispectrum(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, k_pkl_pklnw):
-
-    b1, b2, bs, c1, c2, Bshot, Pshot, X_FoG_bk = bisp_nuis_params
-
-    cosphi=np.cos(phi)
-
-    APtrue = False
-
-    if APtrue:
-        APtransf = APtransforms(k1, k2, x12, mu1, cosphi, qpar, qperp)
-        k1AP, k2AP, k3AP, x12AP, x23AP, x31AP, mu1AP, mu2AP, mu3AP,cosphi = APtransf
-    else:
-        k1AP, k2AP, x12AP, mu1AP = k1, k2, x12, mu1
-        k3AP  = np.sqrt(k1**2 + k2**2 + 2 * k1*k2*x12)
-        x31AP = - (k1 + k2*x12)/k3AP
-        x23AP = - (k2 + k1*x12)/k3AP
-        mu2AP = - np.sqrt(1-mu1**2) * np.sqrt(1-x12**2) * cosphi + mu1*x12
-        mu3AP = - (k1*mu1 + k2*mu2AP) / k3AP
+    if method=='linear':
+        pk_out  = np.interp(k_out, k_in, pk_in)
+    elif method=='cubic':
+        spline = interp1d(
+            k_in, 
+            pk_in, 
+            kind='cubic',       # cubic spline interpolation
+            bounds_error=False, 
+            fill_value="extrapolate"
+        )
+        pk_out = spline(k_out)        
         
-    Q12 = Qij(k1AP, k2AP, x12AP, mu1AP, mu2AP, f, bisp_nuis_params);
-    Q13 = Qij(k1AP, k3AP, x31AP, mu1AP, mu3AP, f, bisp_nuis_params);
-    Q23 = Qij(k2AP, k3AP, x23AP, mu2AP, mu3AP, f, bisp_nuis_params);
+    return pk_out
 
-    pk1   = np.interp(k1AP, k_pkl_pklnw[0], k_pkl_pklnw[1])
-    pk1nw = np.interp(k1AP, k_pkl_pklnw[0], k_pkl_pklnw[2])
-    pk2   = np.interp(k2AP, k_pkl_pklnw[0], k_pkl_pklnw[1])
-    pk2nw = np.interp(k2AP, k_pkl_pklnw[0], k_pkl_pklnw[2])
-    pk3   = np.interp(k3AP, k_pkl_pklnw[0], k_pkl_pklnw[1])
-    pk3nw = np.interp(k3AP, k_pkl_pklnw[0], k_pkl_pklnw[2])
-
-    e1IR = (1 + f*mu1AP**2 *(2 + f))*Sigma2 + (f*mu1AP)**2 * (mu1AP**2 - 1)* deltaSigma2
-    e2IR = (1 + f*mu2AP**2 *(2 + f))*Sigma2 + (f*mu2AP)**2 * (mu2AP**2 - 1)* deltaSigma2
-    e3IR = (1 + f*mu3AP**2 *(2 + f))*Sigma2 + (f*mu3AP)**2 * (mu3AP**2 - 1)* deltaSigma2
-
-    pkIR1= pk1nw + (pk1-pk1nw)*np.exp(-e1IR*k1AP**2)
-    pkIR2= pk2nw + (pk2-pk2nw)*np.exp(-e2IR*k2AP**2)
-    pkIR3= pk3nw + (pk3-pk3nw)*np.exp(-e3IR*k3AP**2)
-
-    f1=f; f2=f; f3=f;
-    Z1_1 = b1 + f1 * mu1AP**2;
-    Z1_2 = b1 + f2 * mu2AP**2;
-    Z1_3 = b1 + f3 * mu3AP**2;
-    Z1eft1 = Z1_1 - (c1*mu1AP**2 + c2*mu1AP**4)*k1AP**2
-    Z1eft2 = Z1_2 - (c1*mu2AP**2 + c2*mu2AP**4)*k2AP**2
-    Z1eft3 = Z1_3 - (c1*mu3AP**2 + c2*mu3AP**4)*k3AP**2
-
-    B12 = Q12 * Z1eft1*pkIR1 * Z1eft2*pkIR2;
-    B13 = Q13 * Z1eft1*pkIR1 * Z1eft3*pkIR3;
-    B23 = Q23 * Z1eft3*pkIR2 * Z1eft3*pkIR3;
-
-    sigma2w = 10  #cambiar por sigma2v
-
-    l2 = (k1AP*mu1AP)**2 + (k2AP*mu2AP)**2 + (k3AP*mu3AP)**2
-    l2 = 0.5 * l2 * (f*X_FoG_bk)**2
-    Winfty = 1.0 #Removed
-    Wlor = 1.0/(1.0+l2*sigma2v)
-
-    Damping='lor'    
-    if Damping==None: 
-        W=1  # EFT if keeps DeltaP
-    elif Damping=='lor':
-        W=Wlor
-    elif Damping=='vdg':  #Removed
-        W=Winfty
-
-    ### Noise 
-    # To match eq.3.14 of 2110.10161, one makes Pshot -> (1+Pshot)/bar-n; Bshot -> Bshot/bar-n
-    shot = (b1*Bshot + 2.0*(Pshot)*f1*mu1AP**2)*Z1eft1*pkIR1 
-    + (b1*Bshot + 2.0*(Pshot)*f2*mu2AP**2)*Z1eft2*pkIR2 
-    + (b1*Bshot + 2.0*(Pshot)*f3*mu3AP**2)*Z1eft3*pkIR3  
-    + (Pshot)**2
-
-
-    bispectrum = W*(B12 + B13 + B23) + shot
-    alpha      = qpar*qperp**2
-    bispectrum = bispectrum / alpha**2
-
-    return bispectrum
-
-import numpy as np
-
-
-
-
-
-def Z1(mu, k, b, c1, f):
-    return b + mu**2 * f - c1 * k**2 * mu**2
+def Z1(mu, k, b, f):
+    return b + mu**2 * f
 
 def k3f(k1, k2, x):
     return np.sqrt(k1**2 + k2**2 + 2 * k1 * k2 * x)
@@ -2006,25 +1848,19 @@ def Z2(ki, kj, xij, mui, muj, f, b1, b2, bs):
     
     return term1 + term2 + term3 + term4
 
-def Qij(ki, kj, xij, mui, muj, f, b1, b2, bs, c1):
-    return (2 * Z2(ki, kj, xij, mui, muj, f, b1, b2, bs) * 
-            Z1(mui, ki, b1, c1, f) * 
-            Z1(muj, kj, b1, c1, f))
 
 
 
 
 def bispectrum_full(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, k_pkl_pklnw):
-    """
-    Calculate the full bispectrum in a single function
-    
+    """    
     Parameters:
     k1, k2: wave numbers
     x12: cosine of angle between k1 and k2
     mu1: direction cosine for k1
     phi: azimuthal angle
     f: growth rate parameter
-    b1, b2, bs, c1: bias parameters
+    b1, b2, bs, c1, c2: bias parameters
     Plin: function that returns linear power spectrum at given k
     """
 
@@ -2065,15 +1901,23 @@ def bispectrum_full(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp
     pkIR2= pk2nw + (pk2-pk2nw)*np.exp(-e2IR*k2AP**2)
     pkIR3= pk3nw + (pk3-pk3nw)*np.exp(-e3IR*k3AP**2)    
     
+    f1=f; f2=f; f3=f;
+    Z1_1 = b1 + f1 * mu1AP**2;
+    Z1_2 = b1 + f2 * mu2AP**2;
+    Z1_3 = b1 + f3 * mu3AP**2;
+    Z1eft1 = Z1_1 - (c1*mu1AP**2 + c2*mu1AP**4)*k1AP**2
+    Z1eft2 = Z1_2 - (c1*mu2AP**2 + c2*mu2AP**4)*k2AP**2
+    Z1eft3 = Z1_3 - (c1*mu3AP**2 + c2*mu3AP**4)*k3AP**2
+    
 
-    B12 = (Qij(k1AP, k2AP, x12AP, mu1AP, mu2AP, f, b1, b2, bs, c1) * 
-           pkIR1 * pkIR2)
+    B12 = (2 * Z2(k1AP, k2AP, x12AP, mu1AP, mu2AP, f, b1, b2, bs) * 
+           Z1eft1*pkIR1 * Z1eft2*pkIR2)
     
-    B23 = (Qij(k2AP, k3AP, x23AP, mu2AP, mu3AP, f, b1, b2, bs, c1) * 
-           pkIR2 * pkIR3)
+    B23 = (2 * Z2(k2AP, k3AP, x23AP, mu2AP, mu3AP, f, b1, b2, bs) * 
+           Z1eft2*pkIR2 * Z1eft3*pkIR3)
     
-    B31 = (Qij(k3AP, k1AP, x31AP, mu3AP, mu1AP, f, b1, b2, bs, c1) * 
-           pkIR3 * pkIR1)    
+    B31 = (2 * Z2(k3AP, k1AP, x31AP, mu3AP, mu1AP, f, b1, b2, bs) * 
+           Z1eft3*pkIR3 * Z1eft1*pkIR1)    
     
     l2 = (k1AP*mu1AP)**2 + (k2AP*mu2AP)**2 + (k3AP*mu3AP)**2
     l2 = 0.5 * l2 * (f*X_FoG_b)**2
@@ -2089,11 +1933,7 @@ def bispectrum_full(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp
     elif Damping=='vdg':   
         W=Winfty
 
-    Z1eft1=Z1(mu1AP, k1AP, b1, c1, f)
-    Z1eft2=Z1(mu2AP, k2AP, b1, c1, f)
-    Z1eft3=Z1(mu3AP, k3AP, b1, c1, f)
-    
-    f1,f2,f3=f,f,f
+   
     
     ### Noise 
     # To match eq.3.14 of 2110.10161, one makes Pshot -> (1+Pshot)/bar-n; Bshot -> Bshot/bar-n
@@ -2176,7 +2016,6 @@ def Sugiyama_B000_B202(k1, k2, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params
     # Create meshgrid for vectorized computation
     x_mesh, mu_mesh, phi_mesh = np.meshgrid(x_values, mu_values, phi_values, indexing='ij')
     
-    # Compute bispectrum for all combinations
     bisp = bispectrum_full(
         k1, k2,
         x_mesh,
@@ -2370,7 +2209,7 @@ def Sugi_integral_weights(x,mu,phi,l1_l2_L):
         return 81/(64.*Pi) - (405*mu**2)/(32.*Pi) + (945*mu**4)/(64.*Pi)
     else:
         l1,l2,L=l1_l2_L[0],l1_l2_L[1],l1_l2_L[2]
-        print('the l1,l2,L combination is not supported')
+        print('the input l1,l2,L combination is not supported')
         return 0
 
 
@@ -2381,10 +2220,6 @@ def tablesGL_f(precision):
     Nphi,Nx,Nmu = precision
                                 
     Pi= np.pi
-    
-    # phi_roots, phi_weights = scipy.special.roots_legendre(Nphi) 
-    # phi_roots = Pi/2 * phi_roots + Pi/2;  phi_weights = Pi/2 * phi_weights
-    # phiGL=np.array([phi_roots,phi_weights]).T
 
     a, b = 0, np.pi
     phi_roots, phi_weights = scipy.special.roots_legendre(Nphi)    
@@ -2450,37 +2285,6 @@ def sigmas(kT,pklT):
     deltaSigma2_ = 1/(2 * np.pi**2)*simpson(pklT*spherical_jn(2, kT/k_BAO), kT)
 
     return sigma2v_, Sigma2_, deltaSigma2_
-
-
-
-
-def interpolation_b(k_out, k_in, pk_in, method='cubic'):
-    
-    if method=='linear':
-        pk_out  = np.interp(k_out, k_in, pk_in)
-    elif method=='cubic':
-        spline = interp1d(
-            k_in, 
-            pk_in, 
-            kind='cubic',       # cubic spline interpolation
-            bounds_error=False, 
-            fill_value="extrapolate"
-        )
-        pk_out = spline(k_out)        
-        
-    return pk_out
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
