@@ -10,7 +10,7 @@
 
 #standard libraries
 
-#For VDG change:   
+#For TNS change:   
 #        remove_DeltaP=False
 #to  
 #        remove_DeltaP=True
@@ -67,7 +67,7 @@ def Matrices(Nfftlog = None):
     global M22matrices, M13vectors, bnu_b, N
 
 
-    remove_DeltaP=False  #change to True for VDG
+    remove_DeltaP=False  #change to True for TNS
 
     
     k_min = 10**(-7); k_max = 100.
@@ -611,7 +611,7 @@ def NonLinear(inputpkl, CosmoParams, EdSkernels=False):
     global TableOut, TableOut_NW, f0, kTout, sigma2w, sigma2w_NW
     global z_pk, omega_b, omega_cdm, omega_ncdm, h
 
-    remove_DeltaP=False     #change to True for VDG
+    remove_DeltaP=False     #change to True for TNS
     
     # Check if matrices are defined
     if 'M22matrices' not in globals() or 'M13vectors' not in globals():
@@ -909,11 +909,11 @@ def PEFTs(kev, mu, NuisanParams, Table):
     
     #NuisanParams
     (b1, b2, bs2, b3nl, alpha0, alpha2, alpha4, 
-                ctilde, alphashot0, alphashot2, PshotP, avir) = NuisanParams
+                ctilde, alphashot0, alphashot2, PshotP, X_FoG_pk) = NuisanParams
 
     
-    remove_DeltaP=False    #change to True for VDG
-    Winfty_all=False       #change to False for VDG and no analytical marginalization
+    remove_DeltaP=False    #change to True for TNS
+    Winfty_all=False       #change to False for TNS and no analytical marginalization
     
     #Table
     (pkl, Fkoverf0, Ploop_dd, Ploop_dt, Ploop_tt, Pb1b2, Pb1bs2, Pb22, Pb2bs2, 
@@ -991,21 +991,18 @@ def PEFTs(kev, mu, NuisanParams, Table):
     def Pshot(mu, alphashot0, alphashot2, PshotP):
         return PshotP*(alphashot0 + alphashot2 * (kev*mu)**2)
 
-    def Winfty(mu,avir):
-        lambda2= (f0*kev*mu*avir)**2
-        exp = - lambda2 * sigma2w /(1+lambda2)
-        W   =np.exp(exp) / np.sqrt(1+lambda2)
-        return W 
+    def Winfty(mu,X_FoG_pk):
+        return 1 
 
 
-    def Wexp(mu,avir):
-        lambda2= (f0*kev*mu*avir)**2
+    def Wexp(mu,X_FoG_pk):
+        lambda2= (f0*kev*mu*X_FoG_pk)**2
         exp = - lambda2 * sigma2w
         W   =np.exp(exp)
         return W  
 
-    def Wlorentz(mu,avir):
-        lambda2= (f0*kev*mu*avir)**2
+    def Wlorentz(mu,X_FoG_pk):
+        lambda2= (f0*kev*mu*X_FoG_pk)**2
         x2 = lambda2 * sigma2w
         W   = 1.0/(1.0+x2)
         return W 
@@ -1015,11 +1012,11 @@ def PEFTs(kev, mu, NuisanParams, Table):
     if Damping==None: 
         W=1  # EFT if keeps DeltaP
     elif Damping=='exp':
-        W=Wexp(mu,avir)
+        W=Wexp(mu,X_FoG_pk)
     elif Damping=='lor':
-        W=Wlorentz(mu,avir)
-    elif Damping=='vdg':
-        W=Winfty(mu,avir)
+        W=Wlorentz(mu,X_FoG_pk)
+    elif Damping=='vdg':  # Removed
+        W=Winfty(mu,X_FoG_pk)
 
 
 
@@ -1156,27 +1153,29 @@ def RSDmultipoles(kev, NuisanParams, Omfid = -1, AP = False):
                    alpha0, alpha2, alpha4: EFT parameters.
                    ctilde: parameter for NL0 ∝ Kaiser power spectrum.
                    alphashot0, alphashot2, PshotP: stochastic noise parameters.
-                   avir: a^2_vir, for VDG
+                   X_FoG_pk: X_FoG_pk^2, for TNS
     Returns:
        Redshift space power spectrum multipoles (monopole, quadrupole and hexadecapole) at 'kev'.
     '''
             
     #NuisanParams
     (b1, b2, bs2, b3nl, alpha0, alpha2, alpha4, 
-                ctilde, alphashot0, alphashot2, PshotP, avir) = NuisanParams
+                ctilde, alphashot0, alphashot2, PshotP, X_FoG_pk) = NuisanParams
 
-    remove_DeltaP=False    #change to True for VDG
-    Winfty_all=False       #change to False for VDG and no analytical marginalization
+    remove_DeltaP=False    #change to True for TNS
+    Winfty_all=False       #change to False for TNS and no analytical marginalization
     
     if AP == True and Omfid == -1:
         sys.exit("Introduce the fiducial value of the dimensionless matter density parameter as ‘Omfid = value’.")
      
     if AP == True and Omfid > 0:
                 
-        #Om computed for any cosmology
+            
+        if (z_pk==0):
+            sys.exit("qperp is not defined at z=0")
+            
         OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
         
-        #qperp, qpar: AP parameters.
         qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
         qpar = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
         
@@ -1288,28 +1287,31 @@ def RSDmultipoles_marginalized_const(kev, NuisanParams, Omfid = -1, AP = False, 
                    alpha0, alpha2, alpha4: EFT parameters.
                    ctilde: parameter for NL0 ∝ Kaiser power spectrum.
                    alphashot0, alphashot2, PshotP: stochastic noise parameters.
-                   avir: a^2_vir for VDG
+                   X_FoG_pk: X_FoG_pk^2 for TNS
     Returns:
        Redshift space power spectrum multipoles (monopole, quadrupole and hexadecapole) at 'kev'.
     '''
     
     #NuisanParams
     (b1, b2, bs2, b3nl, alpha0, alpha2, alpha4, 
-                ctilde, alphashot0, alphashot2, PshotP, avir) = NuisanParams
+                ctilde, alphashot0, alphashot2, PshotP, X_FoG_pk) = NuisanParams
 
     
-    remove_DeltaP=False    #change to True for VDG
-    Winfty_all=False       #change to False for VDG and no analytical marginalization
+    remove_DeltaP=False    #change to True for TNS
+    Winfty_all=False       #change to False for TNS and no analytical marginalization
     
     if AP == True and Omfid == -1:
         sys.exit("Introduce the fiducial value of the dimensionless matter density parameter as ‘Omfid = value’.")
      
     if AP == True and Omfid > 0:
                 
-        #Om computed for any cosmology
+
+
+        if (z_pk==0):
+            sys.exit("qperp is not defined at z=0")            
+            
         OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
         
-        #qperp, qpar: AP parameters.
         qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
         qpar = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
         
@@ -1320,7 +1322,7 @@ def RSDmultipoles_marginalized_const(kev, NuisanParams, Omfid = -1, AP = False, 
         alpha0, alpha2, alpha4, alphashot0, alphashot2 = np.zeros(5)
         
         NuisanParams_const = (b1, b2, bs2, b3nl, alpha0, alpha2, alpha4, 
-                              ctilde, alphashot0, alphashot2, PshotP, avir)
+                              ctilde, alphashot0, alphashot2, PshotP, X_FoG_pk)
         
         
         if AP == True:
@@ -1446,22 +1448,26 @@ def RSDmultipoles_marginalized_derivatives(kev, NuisanParams, Omfid = -1, AP = F
             
     #NuisanParams
     (b1, b2, bs2, b3nl, alpha0, alpha2, alpha4, 
-                ctilde, alphashot0, alphashot2, PshotP, avir) = NuisanParams
+                ctilde, alphashot0, alphashot2, PshotP, X_FoG_pk) = NuisanParams
 
     
-    remove_DeltaP=False    #change to True for VDG
+    remove_DeltaP=False    #change to True for TNS
     
     if AP == True and Omfid == -1:
         sys.exit("Introduce the fiducial value of the dimensionless matter density parameter as ‘Omfid = value’.")
      
     if AP == True and Omfid > 0:
                 
-        #Om computed for any cosmology
+        if (z_pk==0):
+            sys.exit("qperp is not defined at z=0")
+            
         OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
         
-        #qperp, qpar: AP parameters.
         qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
         qpar = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
+        
+        if (z_pk==0):
+            sys.exit("qperp is not defined at z=0")
         
     
     def PIRs_derivatives(kev, mu, Table, Table_NW):
@@ -1794,7 +1800,7 @@ def f0_function(z,OmM0):
 
 def Qij(ki, kj, xij, mui, muj, f, bisp_nuis_params):
 
-    b1, b2, bs, c1, c2, Bshot, Pshot, avir = bisp_nuis_params
+    b1, b2, bs, c1, c2, Bshot, Pshot, X_FoG_pk = bisp_nuis_params
 
     fi=f; fj=f; fij=f;
     Z1i = b1 + fi * mui**2;
@@ -1806,31 +1812,101 @@ def Qij(ki, kj, xij, mui, muj, f, bisp_nuis_params):
     mu2 = kmu**2 / (ki**2 + kj**2 + 2*ki*kj*xij);
     crossterm = 1.0/2.0*kmu * ( fj * muj / kj * Z1i  +  fi * mui / ki * Z1j  ) 
 
+
     advection = xij/2.0 *(ki/kj + kj/ki)
     F2 = 5.0/7.0 + 2.0/7.0 * xij**2 + advection
     G2 = 3.0/7.0 + 4.0/7.0 * xij**2 + advection
     
-    Z2 = b1*F2 + fij*mu2*G2 + crossterm + b2/2.0 + bs*(xij**2 - 1.0/3.0);
+    # Z2 = b1*F2 + fij*mu2*G2 + crossterm + b2/2.0 +  bs/2.0 * (xij**2 - 1.0/3.0);
+    # Z2 = b1*F2 + crossterm + b2/2.0 +  bs/2.0 * (xij**2 - 1.0/3.0);
+    # Z2 = 0 + b2/2.0 +  bs/2.0 * (xij**2 - 1.0/3.0);
+    # Z2 = 0
+    Z2 = b1*F2 + fij*mu2*G2 + crossterm + b2/2.0 +  bs/2.0 * (xij**2 - 1.0/3.0);
+    Z2 = fij*mu2*G2
     
     # Qij = 2*Z1efti*Z1eftj * Z2;
     Qij = 2 * Z2;
+
     
     return  Qij
+
+
+def Z2(ki, kj, xij, mui, muj, f, b1, b2, bs):
+    """
+    Z2 function translated from Mathematica
+    
+    Parameters:
+    ki, kj: wave numbers
+    xij: cosine of angle between ki and kj
+    mui, muj: direction cosines
+    f: growth rate parameter
+    b1, b2, bs: bias parameters
+    """
+
+    term1 = b2/2 + bs/2 * (xij**2 - 1/3)
+    
+    term2 = (ki*mui + kj*muj)/2 * (mui/ki * f * (b1 + f * muj**2) + muj/kj * f * (b1 + f * mui**2))
+    
+    F2= 5/7 + xij/2 * (ki/kj + kj/ki) + 2/7 * xij**2
+    term3 = b1 * F2
+
+    G2 = 5/7 + xij/2 * (ki/kj + kj/ki) + 2/7 * xij**2
+    term4 = f * (ki*mui + kj*muj)**2 / (ki**2 + kj**2 + 2 * ki * kj * xij) * G2 
+    
+    return term1 + term2 + term3 + term4
+
+
+
+# You'll need to define the F2 and G2 functions
+def F2(ki, kj, xij):
+    """
+    F2 kernel function - you'll need to implement the specific form
+    """
+    # Placeholder - replace with actual implementation
+    return 5/7 + xij/2 * (ki/kj + kj/ki) + 2/7 * xij**2
+
+def G2(ki, kj, xij):
+    """
+    G2 kernel function - you'll need to implement the specific form
+    """
+    # Placeholder - replace with actual implementation
+    return 3/7 + xij/2 * (ki/kj + kj/ki) + 4/7 * xij**2
+
+def Z2ij(ki, kj, xij, mui, muj, f, bisp_nuis_params):
+
+    b1, b2, bs, c1, c2, Bshot, Pshot, X_FoG_pk = bisp_nuis_params
+    
+    muij 
+
+
+    
+    return  Z2ij
+
 
 
 
 def bispectrum(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, k_pkl_pklnw):
 
-    b1, b2, bs, c1, c2, Bshot, Pshot, avir = bisp_nuis_params
+    b1, b2, bs, c1, c2, Bshot, Pshot, X_FoG_bk = bisp_nuis_params
 
     cosphi=np.cos(phi)
-    APtransf = APtransforms(k1, k2, x12, mu1, cosphi, qpar, qperp)
-    k1AP, k2AP, k3AP, x12AP, x23AP, x31AP, mu1AP, mu2AP, mu3AP,cosphi = APtransf
 
+    APtrue = False
+
+    if APtrue:
+        APtransf = APtransforms(k1, k2, x12, mu1, cosphi, qpar, qperp)
+        k1AP, k2AP, k3AP, x12AP, x23AP, x31AP, mu1AP, mu2AP, mu3AP,cosphi = APtransf
+    else:
+        k1AP, k2AP, x12AP, mu1AP = k1, k2, x12, mu1
+        k3AP  = np.sqrt(k1**2 + k2**2 + 2 * k1*k2*x12)
+        x31AP = - (k1 + k2*x12)/k3AP
+        x23AP = - (k2 + k1*x12)/k3AP
+        mu2AP = - np.sqrt(1-mu1**2) * np.sqrt(1-x12**2) * cosphi + mu1*x12
+        mu3AP = - (k1*mu1 + k2*mu2AP) / k3AP
+        
     Q12 = Qij(k1AP, k2AP, x12AP, mu1AP, mu2AP, f, bisp_nuis_params);
     Q13 = Qij(k1AP, k3AP, x31AP, mu1AP, mu3AP, f, bisp_nuis_params);
     Q23 = Qij(k2AP, k3AP, x23AP, mu2AP, mu3AP, f, bisp_nuis_params);
-
 
     pk1   = np.interp(k1AP, k_pkl_pklnw[0], k_pkl_pklnw[1])
     pk1nw = np.interp(k1AP, k_pkl_pklnw[0], k_pkl_pklnw[2])
@@ -1839,7 +1915,6 @@ def bispectrum(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis
     pk3   = np.interp(k3AP, k_pkl_pklnw[0], k_pkl_pklnw[1])
     pk3nw = np.interp(k3AP, k_pkl_pklnw[0], k_pkl_pklnw[2])
 
-
     e1IR = (1 + f*mu1AP**2 *(2 + f))*Sigma2 + (f*mu1AP)**2 * (mu1AP**2 - 1)* deltaSigma2
     e2IR = (1 + f*mu2AP**2 *(2 + f))*Sigma2 + (f*mu2AP)**2 * (mu2AP**2 - 1)* deltaSigma2
     e3IR = (1 + f*mu3AP**2 *(2 + f))*Sigma2 + (f*mu3AP)**2 * (mu3AP**2 - 1)* deltaSigma2
@@ -1847,12 +1922,6 @@ def bispectrum(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis
     pkIR1= pk1nw + (pk1-pk1nw)*np.exp(-e1IR*k1AP**2)
     pkIR2= pk2nw + (pk2-pk2nw)*np.exp(-e2IR*k2AP**2)
     pkIR3= pk3nw + (pk3-pk3nw)*np.exp(-e3IR*k3AP**2)
-
-
-
-    # pk1 = pklIR_f(k1AP,pk_in);
-    # pk2 = pklIR_f(k2AP,pk_in);
-    # pk3 = pklIR_f(k3AP,pk_in);
 
     f1=f; f2=f; f3=f;
     Z1_1 = b1 + f1 * mu1AP**2;
@@ -1869,8 +1938,8 @@ def bispectrum(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis
     sigma2w = 10  #cambiar por sigma2v
 
     l2 = (k1AP*mu1AP)**2 + (k2AP*mu2AP)**2 + (k3AP*mu3AP)**2
-    l2 = 0.5 * l2 * (f*avir)**2
-    Winfty = np.exp(- l2 * sigma2v /(1+l2) ) / np.sqrt((1+l2)**3) 
+    l2 = 0.5 * l2 * (f*X_FoG_bk)**2
+    Winfty = 1.0 #Removed
     Wlor = 1.0/(1.0+l2*sigma2v)
 
     Damping='lor'    
@@ -1878,20 +1947,162 @@ def bispectrum(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis
         W=1  # EFT if keeps DeltaP
     elif Damping=='lor':
         W=Wlor
-    elif Damping=='vdg':
+    elif Damping=='vdg':  #Removed
         W=Winfty
 
-    
-    
     ### Noise 
-    # To match eq.3.14 of 2110.10161, one makes (1+Pshot) -> (1+Pshot)/bar-n; Bshot -> Bshot/bar-n
-    shot = (b1*Bshot + 2.0*(1+Pshot)*f1*mu1AP**2)*Z1eft1*pkIR1 
-    + (b1*Bshot + 2.0*(1+Pshot)*f2*mu2AP**2)*Z1eft2*pkIR2 
-    + (b1*Bshot + 2.0*(1+Pshot)*f3*mu3AP**2)*Z1eft3*pkIR3  
-    + (1+Pshot)**2
+    # To match eq.3.14 of 2110.10161, one makes Pshot -> (1+Pshot)/bar-n; Bshot -> Bshot/bar-n
+    shot = (b1*Bshot + 2.0*(Pshot)*f1*mu1AP**2)*Z1eft1*pkIR1 
+    + (b1*Bshot + 2.0*(Pshot)*f2*mu2AP**2)*Z1eft2*pkIR2 
+    + (b1*Bshot + 2.0*(Pshot)*f3*mu3AP**2)*Z1eft3*pkIR3  
+    + (Pshot)**2
 
 
     bispectrum = W*(B12 + B13 + B23) + shot
+    alpha      = qpar*qperp**2
+    bispectrum = bispectrum / alpha**2
+
+    return bispectrum
+
+import numpy as np
+
+
+
+
+
+def Z1(mu, k, b, c1, f):
+    return b + mu**2 * f - c1 * k**2 * mu**2
+
+def k3f(k1, k2, x):
+    return np.sqrt(k1**2 + k2**2 + 2 * k1 * k2 * x)
+
+def mu2f(x, mu1, phi):
+    return np.sqrt(1 - mu1**2) * np.sqrt(1 - x**2) * np.cos(phi) + mu1 * x
+
+def mu3f(k1, k2, x, mu1, phi):
+    k3 = k3f(k1, k2, x)
+    return -(k1/k3) * mu1 - (k2/k3) * mu2f(x, mu1, phi)
+
+def x13f(k1, k2, x):
+    k3 = k3f(k1, k2, x)
+    return -((k1 + k2 * x) / k3)
+
+def x23f(k1, k2, x):
+    k3 = k3f(k1, k2, x)
+    return -((k2 + k1 * x) / k3)
+
+
+def Z2(ki, kj, xij, mui, muj, f, b1, b2, bs):
+    
+    term1 = b2/2 + bs/2 * (xij**2 - 1/3)
+    km=ki*mui + kj*muj
+    term2 = km/2 * (mui/ki * f * (b1 + f * muj**2) + 
+                    muj/kj * f * (b1 + f * mui**2))
+    F2 = 5/7 + xij/2 * (ki/kj + kj/ki) + 2/7 * xij**2
+    G2 = 3/7 + xij/2 * (ki/kj + kj/ki) + 4/7 * xij**2
+    term3 = b1 * F2
+    mu2 = km**2 / (ki**2 + kj**2 + 2 * ki * kj * xij)
+    term4 = f * mu2 * G2
+    
+    return term1 + term2 + term3 + term4
+
+def Qij(ki, kj, xij, mui, muj, f, b1, b2, bs, c1):
+    return (2 * Z2(ki, kj, xij, mui, muj, f, b1, b2, bs) * 
+            Z1(mui, ki, b1, c1, f) * 
+            Z1(muj, kj, b1, c1, f))
+
+
+
+
+def bispectrum_full(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, k_pkl_pklnw):
+    """
+    Calculate the full bispectrum in a single function
+    
+    Parameters:
+    k1, k2: wave numbers
+    x12: cosine of angle between k1 and k2
+    mu1: direction cosine for k1
+    phi: azimuthal angle
+    f: growth rate parameter
+    b1, b2, bs, c1: bias parameters
+    Plin: function that returns linear power spectrum at given k
+    """
+
+    b1, b2, bs, c1, c2, Bshot, Pshot, X_FoG_b = bisp_nuis_params
+    
+    cosphi=np.cos(phi)
+    
+
+    # APtrue = True
+    # if APtrue:
+    APtransf = APtransforms(k1, k2, x12, mu1, cosphi, qpar, qperp)
+    k1AP, k2AP, k3AP, x12AP, x23AP, x31AP, mu1AP, mu2AP, mu3AP,cosphi = APtransf
+    # else:
+    #     k1AP, k2AP, x12AP, mu1AP = k1, k2, x12, mu1
+    #     k3AP  = np.sqrt(k1**2 + k2**2 + 2 * k1*k2*x12)
+    #     x31AP = - (k1 + k2*x12)/k3AP
+    #     x23AP = - (k2 + k1*x12)/k3AP
+    #     mu2AP = - np.sqrt(1-mu1**2) * np.sqrt(1-x12**2) * cosphi + mu1*x12
+    #     mu3AP = - (k1*mu1 + k2*mu2AP) / k3AP
+        
+    k_     = k_pkl_pklnw[0]
+    pkl_   = k_pkl_pklnw[1]
+    pklnw_ = k_pkl_pklnw[2]
+    
+    interp_method='cubic'
+    pk1   = interpolation_b(k1AP, k_, pkl_,   method=interp_method)
+    pk1nw = interpolation_b(k1AP, k_, pklnw_, method=interp_method)
+    pk2   = interpolation_b(k2AP, k_, pkl_,   method=interp_method)
+    pk2nw = interpolation_b(k2AP, k_, pklnw_, method=interp_method)
+    pk3   = interpolation_b(k3AP, k_, pkl_,   method=interp_method)
+    pk3nw = interpolation_b(k3AP, k_, pklnw_, method=interp_method)    
+
+    e1IR = (1 + f*mu1AP**2 *(2 + f))*Sigma2 + (f*mu1AP)**2 * (mu1AP**2 - 1)* deltaSigma2
+    e2IR = (1 + f*mu2AP**2 *(2 + f))*Sigma2 + (f*mu2AP)**2 * (mu2AP**2 - 1)* deltaSigma2
+    e3IR = (1 + f*mu3AP**2 *(2 + f))*Sigma2 + (f*mu3AP)**2 * (mu3AP**2 - 1)* deltaSigma2
+
+    pkIR1= pk1nw + (pk1-pk1nw)*np.exp(-e1IR*k1AP**2)
+    pkIR2= pk2nw + (pk2-pk2nw)*np.exp(-e2IR*k2AP**2)
+    pkIR3= pk3nw + (pk3-pk3nw)*np.exp(-e3IR*k3AP**2)    
+    
+
+    B12 = (Qij(k1AP, k2AP, x12AP, mu1AP, mu2AP, f, b1, b2, bs, c1) * 
+           pkIR1 * pkIR2)
+    
+    B23 = (Qij(k2AP, k3AP, x23AP, mu2AP, mu3AP, f, b1, b2, bs, c1) * 
+           pkIR2 * pkIR3)
+    
+    B31 = (Qij(k3AP, k1AP, x31AP, mu3AP, mu1AP, f, b1, b2, bs, c1) * 
+           pkIR3 * pkIR1)    
+    
+    l2 = (k1AP*mu1AP)**2 + (k2AP*mu2AP)**2 + (k3AP*mu3AP)**2
+    l2 = 0.5 * l2 * (f*X_FoG_b)**2
+    
+    Winfty = 1.0
+    Wlor = 1.0/(1.0+l2*sigma2v)
+
+    Damping='lor'    
+    if Damping==None: 
+        W=1  
+    elif Damping=='lor':
+        W=Wlor
+    elif Damping=='vdg':   
+        W=Winfty
+
+    Z1eft1=Z1(mu1AP, k1AP, b1, c1, f)
+    Z1eft2=Z1(mu2AP, k2AP, b1, c1, f)
+    Z1eft3=Z1(mu3AP, k3AP, b1, c1, f)
+    
+    f1,f2,f3=f,f,f
+    
+    ### Noise 
+    # To match eq.3.14 of 2110.10161, one makes Pshot -> (1+Pshot)/bar-n; Bshot -> Bshot/bar-n
+    shot = (b1*Bshot + 2.0*(Pshot)*f1*mu1AP**2)*Z1eft1*pkIR1 
+    + (b1*Bshot + 2.0*(Pshot)*f2*mu2AP**2)*Z1eft2*pkIR2 
+    + (b1*Bshot + 2.0*(Pshot)*f3*mu3AP**2)*Z1eft3*pkIR3  
+    + (Pshot)**2
+
+    bispectrum = W*(B12 + B23 + B31) + shot
     alpha      = qpar*qperp**2
     bispectrum = bispectrum / alpha**2
     
@@ -1899,21 +2110,22 @@ def bispectrum(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis
 
 
 
-
-
-
 def Bisp_Sugiyama(bisp_cosmo_params, bisp_nuis_params, k_pkl_pklnw, z_pk, 
-                  k1k2pairs, Omfid=-1,precision=[4,5,5]):
+                  k1k2pairs, Omfid=-1,precision=[10,10,10]):
 
+    # precision=[10,10,10]
     OmM, h = bisp_cosmo_params
 
     qperp, qpar = 1, 1
+    
 
     if Omfid > 0:
+        
+        if (z_pk==0):
+            sys.exit("qperp is not defined at z=0")
+            
         qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
         qpar  = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
-        #Om computed for any cosmology
-        #OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
 
     f = f0_function(z_pk,OmM);
 
@@ -1922,9 +2134,6 @@ def Bisp_Sugiyama(bisp_cosmo_params, bisp_nuis_params, k_pkl_pklnw, z_pk,
     sigma2v_, Sigma2_, deltaSigma2_ = sigmas(kT,pklT)
     # print(sigma2v_, Sigma2_, deltaSigma2_,f)
 
-
-    
-    # print(sigma2v_)
 
     #These are tables for GL pairs [phi,mu,x] [[x1,w1],[x2,w2],....]. We should compute them here
     tablesGL=tablesGL_f(precision)
@@ -1960,7 +2169,7 @@ def Sugiyama_B000_B202(k1, k2, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params
     x_weights = xGL[:, 1]
     
     # Constants
-    fourpi = 12.53667061
+    fourpi = 12.566370614359172
     normB000 = 0.5 / fourpi
     normB202 = 5.0 / 2.0 / fourpi
     
@@ -1968,7 +2177,7 @@ def Sugiyama_B000_B202(k1, k2, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params
     x_mesh, mu_mesh, phi_mesh = np.meshgrid(x_values, mu_values, phi_values, indexing='ij')
     
     # Compute bispectrum for all combinations
-    bisp = bispectrum(
+    bisp = bispectrum_full(
         k1, k2,
         x_mesh,
         mu_mesh,
@@ -1977,7 +2186,6 @@ def Sugiyama_B000_B202(k1, k2, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params
         bisp_nuis_params, qpar, qperp, k_pkl_pklnw
     )
     
-    # Multiply by phi weights and sum over phi dimension (axis=2)
     int_phi = 2 * np.sum(bisp * phi_weights, axis=2)
     
     # Compute B000 integral
@@ -1991,21 +2199,200 @@ def Sugiyama_B000_B202(k1, k2, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params
     
     B000 = int_all_B000 * normB000
     B202 = int_all_B202 * normB202
+
+    # int_all_B000 = 0.0
+    # for i_x in range(len(x_weights)):
+    #     int_mu_B000 = 0.0
+    #     for i_mu in range(len(mu_weights)):
+    #         int_phi = 0.0
+    #         for i_phi in range(len(phi_weights)):
+
+    #             bisp=bispectrum(k1, k2, 
+    #                             x_values[i_x], mu_values[i_mu], phi_values[i_phi], 
+    #                             f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, k_pkl_pklnw)
+    #             int_phi = int_phi + bisp * phi_weights[i_phi]
+
+    #         int_mu_B000 = int_mu_B000 + int_phi * mu_weights[i_mu]
+
+    #     int_all_B000 = int_all_B000 + int_mu_B000 * x_weights[i_x]
+
+    # B000 = int_all_B000 * normB000       
+    
     
     return B000, B202
 
 
 
+
+
+def Bisp_Sugiyama_all(bisp_cosmo_params, bisp_nuis_params, k_pkl_pklnw, z_pk, 
+                  k1k2pairs, Omfid=-1,precision=[10,10,10],renormalize=True):
+
+    OmM, h = bisp_cosmo_params
+
+    qperp, qpar = 1, 1
+
+    if Omfid > 0:
+        qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
+        qpar  = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
+        #Om computed for any cosmology
+        #OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
+
+    f = f0_function(z_pk,OmM);
+
+    kT=k_pkl_pklnw[0]
+    pklT=k_pkl_pklnw[1]
+    sigma2v_, Sigma2_, deltaSigma2_ = sigmas(kT,pklT)
+
+    #These are tables for GL pairs [phi,mu,x] [[x1,w1],[x2,w2],....]
+    tablesGL=tablesGL_f(precision)
+
+    size=len(k1k2pairs)
+
+    B000=np.zeros(size)
+    B110=np.zeros(size)
+    B220=np.zeros(size)
+    B202=np.zeros(size)
+    B112=np.zeros(size)
+    B404=np.zeros(size)
+    
+    for ii in range(size):
+        k1,k2 = k1k2pairs[ii]
+        B000[ii], B110[ii], B220[ii], B202[ii], B112[ii], B404[ii]= Sugiyama_Bl1l2L(k1, k2, f, sigma2v_, Sigma2_, deltaSigma2_, bisp_nuis_params, qpar, qperp, tablesGL,k_pkl_pklnw,renormalize)
+    
+    return(B000, B110, B220, B202, B112, B404)
+
+
+def Sugiyama_Bl1l2L(k1, k2, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, tablesGL, k_pkl_pklnw,renormalize):
+
+    
+    phiGL = tablesGL[0]  
+    xGL = tablesGL[1]    
+    muGL = tablesGL[2]  
+    
+    # Extract values and weights
+    phi_values = phiGL[:, 0] 
+    phi_weights = phiGL[:, 1] 
+    
+    mu_values = muGL[:, 0]  
+    mu_weights = muGL[:, 1] 
+    
+    x_values = xGL[:, 0] 
+    x_weights = xGL[:, 1]
+    
+    # Constants
+    fourpi = 12.53667061
+    normB000 = 0.5 / fourpi
+    normB202 = 5.0 / 2.0 / fourpi
+    Pi = 3.14159265359
+    
+    # Create meshgrid for vectorized computation
+    x_mesh, mu_mesh, phi_mesh = np.meshgrid(x_values, mu_values, phi_values, indexing='ij')
+    
+    # Compute bispectrum for all combinations
+    bisp = bispectrum_full(
+        k1, k2,
+        x_mesh,
+        mu_mesh,
+        phi_mesh,
+        f, sigma2v, Sigma2, deltaSigma2, 
+        bisp_nuis_params, qpar, qperp, k_pkl_pklnw
+    )
+    
+    # Multiply by phi weights and sum over phi dimension (axis=2)
+
+    b000_integrand=1 / (8*Pi)
+    b202_integrand= 5*np.sqrt(5)/ (16*Pi) * (-1.0 + 3.0 * mu_values**2)
+    b110_integrand= (-3*np.sqrt(3)*x_values)/(8*Pi)
+    b220_integrand= 5*np.sqrt(5)/ (16*Pi) * (-1.0 + 3*x_values**2)
+    # b112_integrand=  (3*np.sqrt (2.5)*(np.sqrt(3)* (-1 + 3*mu_values**2) * x_values 
+    #                 + 6*mu_values * np.sqrt(1 - mu_values**2)*np.sqrt(1 - x_values**2)*
+    #                                    np.cos(phi_values)))/(8.*Pi)
+    b404_integrand= 81/(64.*Pi) - (405*mu_values**2)/(32.*Pi) + (945*mu_values**4)/(64.*Pi)    
+    
+    int_phi =  2 * np.sum(bisp * phi_weights, axis=2)
+    
+    # Compute B000 integral
+    int_mu_B000  = np.sum(int_phi * mu_weights, axis=1)
+    B000 = np.sum(int_mu_B000 * x_weights)  / (8*Pi)
+    # Compute B202 integral
+    int_mu_B202  = np.sum(int_phi *  b202_integrand * mu_weights, axis=1)
+    B202 = np.sum(int_mu_B202 * x_weights) 
+    # Compute B110 integral
+    int_mu_B110  = int_mu_B000
+    B110 = np.sum(int_mu_B110 * b110_integrand * x_weights)
+    # Compute B220 integral
+    int_mu_B220  = int_mu_B000
+    B220 = np.sum(int_mu_B220 * b220_integrand * x_weights)
+    # Compute B404 integral
+    int_mu_B404  = np.sum(int_phi *  b404_integrand * mu_weights, axis=1)
+    B404 = np.sum(int_mu_B404 * x_weights) 
+      
+    # Compute B112 integral:
+    # int_phi_B112 = 2 * np.sum(bisp *  b112_integrand * phi_weights, axis=2)
+    # int_mu_B112  = np.sum(int_phi_B112 * mu_weights, axis=1)
+    # B112 = np.sum(int_mu_B112 * x_weights)
+    
+    B112 = 0
+    
+    if renormalize:
+    
+        H202 =  1/np.sqrt(5)
+        H110 = -1/np.sqrt(3)
+        H220 =  1/np.sqrt(5)
+        H112 =  np.sqrt(2.0/15.0)
+        H404 =  1.0/3.0
+
+        B110 = H110 * B110 
+        B220 = H220 * B220 
+        B202 = H202 * B202 
+        B112 = H112 * B112 
+        B404 = H404 * B404
+    
+    
+    return B000, B110, B220, B202, B112, B404
+
+
+def Sugi_integral_weights(x,mu,phi,l1_l2_L):
+    Pi = np.pi
+
+    if l1_l2_L == [0,0,0]:
+        return 1 / (8*Pi)
+    elif l1_l2_L == [2,0,2]:
+        return 5*np.sqrt (5)/ (16*Pi) * (-1.0 + 3*mu**2)
+    elif l1_l2_L == [1,1,0]:
+        return (-3*np.sqrt(3)*x)/(8*Pi)
+    elif l1_l2_L == [2,2,0]:
+        return 5*np.sqrt(5)/ (16*pi) * (-1.0 + 3*x**2)
+    elif l1_l2_L == [1,1,2]:
+        return (-3*np.sqrt(7.5)*x)/(8.*Pi) + (9*np.sqrt(7.5)*mu**2*x)/(8.*Pi) + (9*np.sqrt(2.5)*mu*np.sqrt(1 - mu**2)*np.sqrt(1 - x**2)*np.cos(phi))/(4*Pi)
+    elif l1_l2_L == [4,0,4]:
+        return 81/(64.*Pi) - (405*mu**2)/(32.*Pi) + (945*mu**4)/(64.*Pi)
+    else:
+        l1,l2,L=l1_l2_L[0],l1_l2_L[1],l1_l2_L[2]
+        print('the l1,l2,L combination is not supported')
+        return 0
+
+
+
 #These are GL pairs [[x1,w1],[x2,w2],....]. We should compute them here
-def tablesGL_f(precision=[4,5,5]):
+def tablesGL_f(precision):
 
     Nphi,Nx,Nmu = precision
                                 
     Pi= np.pi
     
-    phi_roots, phi_weights = scipy.special.roots_legendre(Nphi) 
-    phi_roots = Pi/2 * phi_roots + Pi/2;  phi_weights = Pi/2 * phi_weights
+    # phi_roots, phi_weights = scipy.special.roots_legendre(Nphi) 
+    # phi_roots = Pi/2 * phi_roots + Pi/2;  phi_weights = Pi/2 * phi_weights
+    # phiGL=np.array([phi_roots,phi_weights]).T
+
+    a, b = 0, np.pi
+    phi_roots, phi_weights = scipy.special.roots_legendre(Nphi)    
+    phi_roots = 0.5 * (b - a) * phi_roots + 0.5 * (a + b)
+    phi_weights = 0.5 * (b - a) * phi_weights
     phiGL=np.array([phi_roots,phi_weights]).T
+
+    
     
     x_roots, x_weights = scipy.special.roots_legendre(Nx) 
     xGL=np.array([x_roots,x_weights]).T
@@ -2063,6 +2450,35 @@ def sigmas(kT,pklT):
     deltaSigma2_ = 1/(2 * np.pi**2)*simpson(pklT*spherical_jn(2, kT/k_BAO), kT)
 
     return sigma2v_, Sigma2_, deltaSigma2_
+
+
+
+
+def interpolation_b(k_out, k_in, pk_in, method='cubic'):
+    
+    if method=='linear':
+        pk_out  = np.interp(k_out, k_in, pk_in)
+    elif method=='cubic':
+        spline = interp1d(
+            k_in, 
+            pk_in, 
+            kind='cubic',       # cubic spline interpolation
+            bounds_error=False, 
+            fill_value="extrapolate"
+        )
+        pk_out = spline(k_out)        
+        
+    return pk_out
+
+
+
+
+
+
+
+
+
+
 
 
 
