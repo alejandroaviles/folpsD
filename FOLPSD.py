@@ -2240,6 +2240,119 @@ def tablesGL_f(precision):
 
 
 
+
+##### Scoccimarro bispectrum basis 
+
+def tablesGL2_f(precision):
+
+    Nphi,Nmu = precision
+                                
+    Pi= np.pi
+
+    a, b = 0, np.pi
+    phi_roots, phi_weights = scipy.special.roots_legendre(Nphi)    
+    phi_roots = 0.5 * (b - a) * phi_roots + 0.5 * (a + b)
+    phi_weights = 0.5 * (b - a) * phi_weights
+    phiGL=np.array([phi_roots,phi_weights]).T
+
+    
+    
+    mu_roots, mu_weights = scipy.special.roots_legendre(Nmu) 
+    muGL=np.array([mu_roots,mu_weights]).T 
+    tablesGL = [phiGL,muGL]
+    
+    return tablesGL
+
+
+def Scoccimarro_B024(k1, k2, x, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, tablesGL, k_pkl_pklnw):
+    
+    
+    phiGL = tablesGL[0]     
+    muGL = tablesGL[1]  
+    
+    phi_values = phiGL[:, 0] 
+    phi_weights = phiGL[:, 1] 
+    
+    mu_values = muGL[:, 0]  
+    mu_weights = muGL[:, 1] 
+    
+    twopi = 6.28318530718
+    normB0 = 0.5  #(2*ell+1)/2
+    normB2 = 2.5
+    normB4 = 4.5
+    
+    # Create meshgrid for vectorized computation
+    mu_mesh, phi_mesh = np.meshgrid(mu_values, phi_values, indexing='ij')
+    
+    bisp = bispectrum_full(
+        k1, k2,
+        x,
+        mu_mesh,
+        phi_mesh,
+        f, sigma2v, Sigma2, deltaSigma2, 
+        bisp_nuis_params, qpar, qperp, k_pkl_pklnw
+    )
+    
+    int_phi = 2 * np.sum(bisp * phi_weights, axis=1)
+    
+    # Compute B0 integral
+    int_mu_B0  = np.sum(int_phi * mu_weights) / twopi
+    
+    # Compute B2 integral Y20 = leg2 / 2*Pi
+    leg2 = 0.5 * (-1.0 + 3.0 * mu_values**2) 
+    int_mu_B2  = np.sum(int_phi * leg2 * mu_weights) / twopi
+    
+    # Compute B4 integral Y40 = leg4 / 2*Pi
+    leg4 = (35.0*mu_values**4 - 30.*mu_values**2 + 3)/8 
+    int_mu_B4  = np.sum(int_phi * leg4 * mu_weights) / twopi
+    
+    B0 = int_mu_B0 * normB0
+    B2 = int_mu_B2 * normB2
+    B4 = int_mu_B4 * normB4
+     
+    return B0, B2, B4
+
+def Bisp_Scoccimarro_all(bisp_cosmo_params, bisp_nuis_params, k_pkl_pklnw, z_pk, 
+                  k1k2k3triplets, Omfid=-1,precision=[10,10]):
+
+    OmM, h = bisp_cosmo_params
+
+    qperp, qpar = 1, 1
+
+    if Omfid > 0:
+        qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
+        qpar  = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
+        #Om computed for any cosmology
+        #OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
+
+    f = f0_function(z_pk,OmM);
+
+    kT=k_pkl_pklnw[0]
+    pklT=k_pkl_pklnw[1]
+    sigma2v_, Sigma2_, deltaSigma2_ = sigmas(kT,pklT)
+
+    #These are tables for GL pairs [phi,mu] [[x1,w1],[x2,w2],....]
+    tablesGL=tablesGL2_f(precision)
+
+    size=len(k1k2k3triplets)
+
+    B0=np.zeros(size)
+    B2=np.zeros(size)
+    B4=np.zeros(size)
+    xx=np.zeros(size)
+
+    for ii in range(size):
+        k1,k2,k3 = k1k2k3triplets[ii]
+        x = (k3**2 - k1**2 - k2**2) / (2 * k1 * k2)
+        xx[ii]=x
+
+        B0[ii], B2[ii], B4[ii]= Scoccimarro_B024(k1, k2, x, f, sigma2v_, Sigma2_, deltaSigma2_, bisp_nuis_params, qpar, qperp, tablesGL,k_pkl_pklnw)
+    
+    return(B0, B2, B4, xx)
+
+
+
+
 def kAP(k, mu, qpar, qperp):
     return k / qperp * np.sqrt(1 + mu**2 * (-1 + (qperp**2) / (qpar**2)))
 
