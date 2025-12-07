@@ -1796,7 +1796,7 @@ def f0_function(z,OmM0):
     return f0
 
 
-def interpolation_b(k_out, k_in, pk_in, method='cubic'):
+def interpolation_b(k_out, k_in, pk_in, method='linear'):
     
     if method=='linear':
         pk_out  = np.interp(k_out, k_in, pk_in)
@@ -1852,7 +1852,7 @@ def Z2(ki, kj, xij, mui, muj, f, b1, b2, bs):
 
 
 
-def bispectrum_full(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, k_pkl_pklnw):
+def bispectrum_full(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, k_pkl_pklnw,interpolation_method='cubic'):
     """    
     Parameters:
     k1, k2: wave numbers
@@ -1885,13 +1885,12 @@ def bispectrum_full(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp
     pkl_   = k_pkl_pklnw[1]
     pklnw_ = k_pkl_pklnw[2]
     
-    interp_method='cubic'
-    pk1   = interpolation_b(k1AP, k_, pkl_,   method=interp_method)
-    pk1nw = interpolation_b(k1AP, k_, pklnw_, method=interp_method)
-    pk2   = interpolation_b(k2AP, k_, pkl_,   method=interp_method)
-    pk2nw = interpolation_b(k2AP, k_, pklnw_, method=interp_method)
-    pk3   = interpolation_b(k3AP, k_, pkl_,   method=interp_method)
-    pk3nw = interpolation_b(k3AP, k_, pklnw_, method=interp_method)    
+    pk1   = interpolation_b(k1AP, k_, pkl_,   method=interpolation_method)
+    pk1nw = interpolation_b(k1AP, k_, pklnw_, method=interpolation_method)
+    pk2   = interpolation_b(k2AP, k_, pkl_,   method=interpolation_method)
+    pk2nw = interpolation_b(k2AP, k_, pklnw_, method=interpolation_method)
+    pk3   = interpolation_b(k3AP, k_, pkl_,   method=interpolation_method)
+    pk3nw = interpolation_b(k3AP, k_, pklnw_, method=interpolation_method)    
 
     e1IR = (1 + f*mu1AP**2 *(2 + f))*Sigma2 + (f*mu1AP)**2 * (mu1AP**2 - 1)* deltaSigma2
     e2IR = (1 + f*mu2AP**2 *(2 + f))*Sigma2 + (f*mu2AP)**2 * (mu2AP**2 - 1)* deltaSigma2
@@ -1950,230 +1949,76 @@ def bispectrum_full(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp
 
 
 
-def Bisp_Sugiyama(bisp_cosmo_params, bisp_nuis_params, k_pkl_pklnw, z_pk, 
-                  k1k2pairs, Omfid=-1,precision=[10,10,10]):
 
-    # precision=[10,10,10]
-    OmM, h = bisp_cosmo_params
 
-    qperp, qpar = 1, 1
+
+
+
+def Sugiyama_Bl1l2L(k1k2pairs, bisp_nuis_params, bisp_cosmo_params, qpar, qperp, k_pkl_pklnw, 
+                     precision=[8,10,10], 
+                     f=None, 
+                     renormalize=True, 
+                     interpolation_method='linear'):
     
+    Pi=np.pi
 
-    if Omfid > 0:
-        
-        if (z_pk==0):
-            sys.exit("qperp is not defined at z=0")
-            
-        qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
-        qpar  = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
-
-    f = f0_function(z_pk,OmM);
-
-    kT=k_pkl_pklnw[0]
-    pklT=k_pkl_pklnw[1]
-    sigma2v_, Sigma2_, deltaSigma2_ = sigmas(kT,pklT)
-    # print(sigma2v_, Sigma2_, deltaSigma2_,f)
-
-
-    #These are tables for GL pairs [phi,mu,x] [[x1,w1],[x2,w2],....]. We should compute them here
-    tablesGL=tablesGL_f(precision)
-
-    size=len(k1k2pairs)
-
-    B000=np.zeros(size)
-    B202=np.zeros(size)
+    k1k2pairs = np.asarray(k1k2pairs)
+    k1 = k1k2pairs[:,0][:,None,None,None]   # (N,1,1,1)
+    k2 = k1k2pairs[:,1][:,None,None,None]   # (N,1,1,1)
     
-    for ii in range(size):
-        k1,k2 = k1k2pairs[ii]
-        B000[ii], B202[ii] = Sugiyama_B000_B202(k1, k2, f, sigma2v_, Sigma2_, deltaSigma2_, bisp_nuis_params, qpar, qperp, tablesGL,k_pkl_pklnw)
+    tablesGL = tablesGL_f(precision)
+    sigma2v, Sigma2, deltaSigma2 = sigmas(k_pkl_pklnw[0],k_pkl_pklnw[1])
     
-    return(B000,B202)
+    OmM,h=bisp_cosmo_params
+    
+    if f==None:
+        f = f0_function(z_pk,OmM);
 
+    phiGL, xGL, muGL = tablesGL
+    phi, wphi = phiGL[:,0], phiGL[:,1]
+    x,   wx   = xGL[:,0],  xGL[:,1]
+    mu,  wmu  = muGL[:,0], muGL[:,1]
 
+    # Broadcast quadrature grids to (1,Nx,Nμ,Nφ)
+    x_mesh  = x[:,None,None][None,:,:,:]
+    mu_mesh = mu[None,:,None][None,:,:,:]
+    phi_mesh= phi[None,None,:][None,:,:,:]
+    
+    print(interpolation_method)
 
-
-
-def Sugiyama_B000_B202(k1, k2, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, tablesGL, k_pkl_pklnw):
-    phiGL = tablesGL[0]  
-    xGL = tablesGL[1]    
-    muGL = tablesGL[2]  
-    
-    # Extract values and weights
-    phi_values = phiGL[:, 0] 
-    phi_weights = phiGL[:, 1] 
-    
-    mu_values = muGL[:, 0]  
-    mu_weights = muGL[:, 1] 
-    
-    x_values = xGL[:, 0] 
-    x_weights = xGL[:, 1]
-    
-    # Constants
-    fourpi = 12.566370614359172
-    normB000 = 0.5 / fourpi
-    normB202 = 5.0 / 2.0 / fourpi
-    
-    # Create meshgrid for vectorized computation
-    x_mesh, mu_mesh, phi_mesh = np.meshgrid(x_values, mu_values, phi_values, indexing='ij')
-    
+    # Evaluate full bispectrum for each pair
     bisp = bispectrum_full(
-        k1, k2,
-        x_mesh,
-        mu_mesh,
-        phi_mesh,
-        f, sigma2v, Sigma2, deltaSigma2, 
-        bisp_nuis_params, qpar, qperp, k_pkl_pklnw
-    )
+        k1, k2, x_mesh, mu_mesh, phi_mesh,
+        f, sigma2v, Sigma2, deltaSigma2,
+        bisp_nuis_params, qpar, qperp, k_pkl_pklnw, 
+        interpolation_method
+    )   # shape (N, Nx, Nμ, Nφ)
+
+    # Integrate over φ
+    int_phi = 2 * np.sum(bisp * wphi[None,None,None,:], axis=3)   # → (N,Nx,Nμ)
+
+    # Integrate B000
+    int_mu  = np.sum(int_phi * wmu[None,None,:], axis=2)          # → (N,Nx)
+    B000    = np.sum(int_mu * wx[None,:], axis=1) / (8*Pi)     # → (N,)
+
+    # Integrate B110
+    b110_integrand = (-3*np.sqrt(3)*x) / (8*Pi)
+    B110 = np.sum(int_mu * wx[None,:] * b110_integrand[None,:], axis=1)     # → (N,)
+
+    # Integrate B220
+    b220_integrand = 5*np.sqrt(5)/ (16*Pi) * (-1.0 + 3*x**2)
+    B220 = np.sum(int_mu * wx[None,:] * b220_integrand[None,:], axis=1)     # → (N,)
+
+    # Integrate B202
+    b202_integrand = 5*np.sqrt(5)/ (16*Pi) * (-1.0 + 3.0 * mu**2)
+    # B202 = np.sum(int_mu * wx[None,:] * b202[None,:], axis=1)     # → (N,)   
+    int_mu_B202  = np.sum(int_phi * wmu[None,None,:] *  b202_integrand[None,None,:], axis=2) # → (N,Nx)
+    B202 = np.sum(int_mu_B202 * wx[None,:], axis=1)     # → (N,)
     
-    int_phi = 2 * np.sum(bisp * phi_weights, axis=2)
-    
-    # Compute B000 integral
-    int_mu_B000  = np.sum(int_phi * mu_weights, axis=1)
-    int_all_B000 = np.sum(int_mu_B000 * x_weights)
-    
-    # Compute B202 integral
-    leg2 = 0.5 * (-1.0 + 3.0 * mu_values**2)
-    int_mu_B202  = np.sum(int_phi * leg2 * mu_weights, axis=1)
-    int_all_B202 = np.sum(int_mu_B202 * x_weights)
-    
-    B000 = int_all_B000 * normB000
-    B202 = int_all_B202 * normB202
+    b404_integrand= (81.0 - 810.0*mu**2 + 945.0*mu**4)/(64.*Pi)   
+    int_mu_B404  = np.sum(int_phi * wmu[None,None,:] *  b404_integrand[None,None,:], axis=2) # → (N,Nx)
+    B404 = np.sum(int_mu_B404 * wx[None,:], axis=1)     # → (N,) 
 
-    # int_all_B000 = 0.0
-    # for i_x in range(len(x_weights)):
-    #     int_mu_B000 = 0.0
-    #     for i_mu in range(len(mu_weights)):
-    #         int_phi = 0.0
-    #         for i_phi in range(len(phi_weights)):
-
-    #             bisp=bispectrum(k1, k2, 
-    #                             x_values[i_x], mu_values[i_mu], phi_values[i_phi], 
-    #                             f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, k_pkl_pklnw)
-    #             int_phi = int_phi + bisp * phi_weights[i_phi]
-
-    #         int_mu_B000 = int_mu_B000 + int_phi * mu_weights[i_mu]
-
-    #     int_all_B000 = int_all_B000 + int_mu_B000 * x_weights[i_x]
-
-    # B000 = int_all_B000 * normB000       
-    
-    
-    return B000, B202
-
-
-
-
-
-def Bisp_Sugiyama_all(bisp_cosmo_params, bisp_nuis_params, k_pkl_pklnw, z_pk, 
-                  k1k2pairs, Omfid=-1,precision=[10,10,10],renormalize=True):
-
-    OmM, h = bisp_cosmo_params
-
-    qperp, qpar = 1, 1
-
-    if Omfid > 0:
-        qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
-        qpar  = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
-        #Om computed for any cosmology
-        #OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
-
-    f = f0_function(z_pk,OmM);
-
-    kT=k_pkl_pklnw[0]
-    pklT=k_pkl_pklnw[1]
-    sigma2v_, Sigma2_, deltaSigma2_ = sigmas(kT,pklT)
-
-    #These are tables for GL pairs [phi,mu,x] [[x1,w1],[x2,w2],....]
-    tablesGL=tablesGL_f(precision)
-
-    size=len(k1k2pairs)
-
-    B000=np.zeros(size)
-    B110=np.zeros(size)
-    B220=np.zeros(size)
-    B202=np.zeros(size)
-    B112=np.zeros(size)
-    B404=np.zeros(size)
-    
-    for ii in range(size):
-        k1,k2 = k1k2pairs[ii]
-        B000[ii], B110[ii], B220[ii], B202[ii], B112[ii], B404[ii]= Sugiyama_Bl1l2L(k1, k2, f, sigma2v_, Sigma2_, deltaSigma2_, bisp_nuis_params, qpar, qperp, tablesGL,k_pkl_pklnw,renormalize)
-    
-    return(B000, B110, B220, B202, B112, B404)
-
-
-def Sugiyama_Bl1l2L(k1, k2, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, qpar, qperp, tablesGL, k_pkl_pklnw,renormalize):
-
-    
-    phiGL = tablesGL[0]  
-    xGL = tablesGL[1]    
-    muGL = tablesGL[2]  
-    
-    # Extract values and weights
-    phi_values = phiGL[:, 0] 
-    phi_weights = phiGL[:, 1] 
-    
-    mu_values = muGL[:, 0]  
-    mu_weights = muGL[:, 1] 
-    
-    x_values = xGL[:, 0] 
-    x_weights = xGL[:, 1]
-    
-    # Constants
-    fourpi = 12.53667061
-    normB000 = 0.5 / fourpi
-    normB202 = 5.0 / 2.0 / fourpi
-    Pi = 3.14159265359
-    
-    # Create meshgrid for vectorized computation
-    x_mesh, mu_mesh, phi_mesh = np.meshgrid(x_values, mu_values, phi_values, indexing='ij')
-    
-    # Compute bispectrum for all combinations
-    bisp = bispectrum_full(
-        k1, k2,
-        x_mesh,
-        mu_mesh,
-        phi_mesh,
-        f, sigma2v, Sigma2, deltaSigma2, 
-        bisp_nuis_params, qpar, qperp, k_pkl_pklnw
-    )
-    
-    # Multiply by phi weights and sum over phi dimension (axis=2)
-
-    b000_integrand=1 / (8*Pi)
-    b202_integrand= 5*np.sqrt(5)/ (16*Pi) * (-1.0 + 3.0 * mu_values**2)
-    b110_integrand= (-3*np.sqrt(3)*x_values)/(8*Pi)
-    b220_integrand= 5*np.sqrt(5)/ (16*Pi) * (-1.0 + 3*x_values**2)
-    # b112_integrand=  (3*np.sqrt (2.5)*(np.sqrt(3)* (-1 + 3*mu_values**2) * x_values 
-    #                 + 6*mu_values * np.sqrt(1 - mu_values**2)*np.sqrt(1 - x_values**2)*
-    #                                    np.cos(phi_values)))/(8.*Pi)
-    b404_integrand= 81/(64.*Pi) - (405*mu_values**2)/(32.*Pi) + (945*mu_values**4)/(64.*Pi)    
-    
-    int_phi =  2 * np.sum(bisp * phi_weights, axis=2)
-    
-    # Compute B000 integral
-    int_mu_B000  = np.sum(int_phi * mu_weights, axis=1)
-    B000 = np.sum(int_mu_B000 * x_weights)  / (8*Pi)
-    # Compute B202 integral
-    int_mu_B202  = np.sum(int_phi *  b202_integrand * mu_weights, axis=1)
-    B202 = np.sum(int_mu_B202 * x_weights) 
-    # Compute B110 integral
-    int_mu_B110  = int_mu_B000
-    B110 = np.sum(int_mu_B110 * b110_integrand * x_weights)
-    # Compute B220 integral
-    int_mu_B220  = int_mu_B000
-    B220 = np.sum(int_mu_B220 * b220_integrand * x_weights)
-    # Compute B404 integral
-    int_mu_B404  = np.sum(int_phi *  b404_integrand * mu_weights, axis=1)
-    B404 = np.sum(int_mu_B404 * x_weights) 
-      
-    # Compute B112 integral:
-    # int_phi_B112 = 2 * np.sum(bisp *  b112_integrand * phi_weights, axis=2)
-    # int_mu_B112  = np.sum(int_phi_B112 * mu_weights, axis=1)
-    # B112 = np.sum(int_mu_B112 * x_weights)
-    
-    B112 = 0
-    
     if renormalize:
     
         H202 =  1/np.sqrt(5)
@@ -2185,33 +2030,10 @@ def Sugiyama_Bl1l2L(k1, k2, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_params, q
         B110 = H110 * B110 
         B220 = H220 * B220 
         B202 = H202 * B202 
-        B112 = H112 * B112 
+        # B112 = H112 * B112 
         B404 = H404 * B404
     
-    
-    return B000, B110, B220, B202, B112, B404
-
-
-def Sugi_integral_weights(x,mu,phi,l1_l2_L):
-    Pi = np.pi
-
-    if l1_l2_L == [0,0,0]:
-        return 1 / (8*Pi)
-    elif l1_l2_L == [2,0,2]:
-        return 5*np.sqrt (5)/ (16*Pi) * (-1.0 + 3*mu**2)
-    elif l1_l2_L == [1,1,0]:
-        return (-3*np.sqrt(3)*x)/(8*Pi)
-    elif l1_l2_L == [2,2,0]:
-        return 5*np.sqrt(5)/ (16*pi) * (-1.0 + 3*x**2)
-    elif l1_l2_L == [1,1,2]:
-        return (-3*np.sqrt(7.5)*x)/(8.*Pi) + (9*np.sqrt(7.5)*mu**2*x)/(8.*Pi) + (9*np.sqrt(2.5)*mu*np.sqrt(1 - mu**2)*np.sqrt(1 - x**2)*np.cos(phi))/(4*Pi)
-    elif l1_l2_L == [4,0,4]:
-        return 81/(64.*Pi) - (405*mu**2)/(32.*Pi) + (945*mu**4)/(64.*Pi)
-    else:
-        l1,l2,L=l1_l2_L[0],l1_l2_L[1],l1_l2_L[2]
-        print('the input l1,l2,L combination is not supported')
-        return 0
-
+    return B000, B110, B220, B202, B404
 
 
 #These are GL pairs [[x1,w1],[x2,w2],....]. We should compute them here
@@ -2376,9 +2198,11 @@ def APtransforms(k1, k2, x12, mu1, cosphi, qpar, qperp):
     x31AP = -(k1AP + k2AP*x12AP)/k3AP
     x23AP = -(k2AP + k1AP*x12AP)/k3AP
 
-    output = np.array([k1AP, k2AP, k3AP, x12AP, x23AP, x31AP, mu1AP, mu2AP, mu3AP,cosphi])
+    return (k1AP, k2AP, k3AP,x12AP, x23AP, x31AP,mu1AP, mu2AP, mu3AP,cosphi)
+
+    # output = np.array([k1AP, k2AP, k3AP, x12AP, x23AP, x31AP, mu1AP, mu2AP, mu3AP,cosphi])
     
-    return output
+    # return output
 
 
 
