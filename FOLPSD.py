@@ -34,8 +34,9 @@ if hasattr(integrate, "simpson"):   # New versions
     def simpson(y, x=None, **kwargs):
         return integrate.simpson(y, x=x, **kwargs)
 else:                               # Old versions
-    def simps_compat(y, x=None, **kwargs):
-        return integrate.simpson(y, x, **kwargs)
+    def simpson(y, x=None, **kwargs):
+        return integrate.simps(y, x, **kwargs)
+
 
 
 
