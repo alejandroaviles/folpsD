@@ -1095,21 +1095,39 @@ def mu_AP(mu_obs, qperp, qpar):
 
 
 
-def Hubble(Om, z_ev):
-    '''Hubble parameter.
+def AP_qpar_qperp(z,OmM,w0=-1.0,wa=0.0,Omfid=-1):
+    """
+    return qpar, qperp for input z,OmM,w0,wa
+    """
     
-    Args:
-        Om: Omega_b + Omega_c + Omega_nu (dimensionless matter density parameter).
-        z_ev: redshift of evaluation.
-    Returns:
-        Hubble parameter.
-    '''
-    return ((Om) * (1 + z_ev)**3. + (1 - Om))**0.5
+    if(z==0):
+        return 1,1
+    if(Omfid<0):
+        return 1,1
+    
+    qperp = DA(OmM,z,w0,wa)/DA(Omfid,z,w0,wa) 
+    qpar  = Hubble(Omfid,z,w0,wa)/Hubble(OmM,z,w0,wa) 
+    
+    return qpar,qperp 
+    
+
+
+def Hubble(OmM, z_ev, w0=-1.0, wa=0.0):
+    """
+    Dimensionless Hubble parameter E(z) = H(z)/H0
+    """
+
+    if (w0 == -1.0) and (wa == 0.0):
+        return (OmM * (1.0 + z_ev)**3 + (1-OmM) )**0.5
+
+    f_de = zp1**(3.0 * (1.0 + w0 + wa)) * math.exp(-3.0 * wa * z_ev / (1.0 + z_ev))
+
+    return (OmM * zp1**3 + (1-OmM)*f_de )**0.5
 
 
 
 
-def DA(Om, z_ev):
+def DA(Om, z_ev, w0=-1, wa=0):
     '''Angular-diameter distance.
     
      Args:
@@ -1118,9 +1136,14 @@ def DA(Om, z_ev):
     Returns:
         Angular diameter distance.
     '''
-    r = quad(lambda x: 1. / Hubble(Om, x), 0, z_ev)[0]
-    return r / (1 + z_ev)
-
+    
+    if (w0 == -1.0) and (wa == 0.0):
+        r = quad(lambda x: 1. / Hubble(Om, x), 0, z_ev)[0]
+        return r / (1 + z_ev)
+    
+ 
+    r = quad(lambda x: 1. / Hubble(Om, x,w0, wa), 0, z_ev)[0]
+    return r / (1 + z_ev)   
 
 
 
@@ -1140,7 +1163,7 @@ def Table_interp(k, kev, Table):
 
 
 
-def RSDmultipoles(kev, NuisanParams, Omfid = -1, AP = False):
+def RSDmultipoles(kev, NuisanParams, qpar, qperp):
     '''Redshift space power spectrum multipoles.
     
     Args:
@@ -1165,98 +1188,50 @@ def RSDmultipoles(kev, NuisanParams, Omfid = -1, AP = False):
 
     remove_DeltaP=False    #change to True for TNS
     Winfty_all=False       #change to False for TNS and no analytical marginalization
-    
-    if AP == True and Omfid == -1:
-        sys.exit("Introduce the fiducial value of the dimensionless matter density parameter as ‘Omfid = value’.")
-     
-    if AP == True and Omfid > 0:
-                
-            
-        if (z_pk==0):
-            sys.exit("qperp is not defined at z=0")
-            
-        OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
-        
-        qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
-        qpar = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
         
         
     def PIRs(kev, mu, Table, Table_NW):
         
-        if AP == True:
             
-            k_true = k_AP(kev, mu, qperp, qpar)
-            mu_true = mu_AP(mu, qperp, qpar)
-            
-            Table_true = Table_interp(k_true, kev, Table)
-            Table_NW_true = Table_interp(k_true, kev, Table_NW)
-            
-            Sigma2T = Sigma2Total(k_true, mu_true, Table_NW_true)
-            
-            Fkoverf0 = Table_true[1]; fk = Fkoverf0*f0
-            pkl = Table_true[0]; pkl_NW = Table_NW_true[0];
-            
-            
-            return ((b1 + fk * mu_true**2)**2 * (pkl_NW + np.exp(-k_true**2 * Sigma2T)*(pkl-pkl_NW)*(1 + k_true**2 * Sigma2T) )
-                + np.exp(-k_true**2 * Sigma2T)*PEFTs(k_true, mu_true, NuisanParams, Table_true) 
-                + (1 - np.exp(-k_true**2 * Sigma2T))*PEFTs(k_true, mu_true, NuisanParams, Table_NW_true)) 
-            
-        else:
-            
-            k = kev; Fkoverf0 = Table[1]; fk = Fkoverf0*f0
-            pkl = Table[0]; pkl_NW = Table_NW[0];
-            Sigma2T = Sigma2Total(kev, mu, Table_NW)
-            
-            return ((b1 + fk * mu**2)**2 * (pkl_NW + np.exp(-k**2 * Sigma2T)*(pkl-pkl_NW)*(1 + k**2 * Sigma2T) )
-                + np.exp(-k**2 * Sigma2T)*PEFTs(k, mu, NuisanParams, Table) 
-                + (1 - np.exp(-k**2 * Sigma2T))*PEFTs(k, mu, NuisanParams, Table_NW))     
+        k_true = k_AP(kev, mu, qperp, qpar)
+        mu_true = mu_AP(mu, qperp, qpar)
+
+        Table_true = Table_interp(k_true, kev, Table)
+        Table_NW_true = Table_interp(k_true, kev, Table_NW)
+
+        Sigma2T = Sigma2Total(k_true, mu_true, Table_NW_true)
+
+        Fkoverf0 = Table_true[1]; fk = Fkoverf0*f0
+        pkl = Table_true[0]; pkl_NW = Table_NW_true[0];
+
+
+        return ((b1 + fk * mu_true**2)**2 * (pkl_NW + np.exp(-k_true**2 * Sigma2T)*(pkl-pkl_NW)*(1 + k_true**2 * Sigma2T) )
+            + np.exp(-k_true**2 * Sigma2T)*PEFTs(k_true, mu_true, NuisanParams, Table_true) 
+            + (1 - np.exp(-k_true**2 * Sigma2T))*PEFTs(k_true, mu_true, NuisanParams, Table_NW_true)) 
+
+        
+    Nx = 6                                         #Points
+    xGL, wGL = scipy.special.roots_legendre(Nx)    #x=cosθ and weights
+
+    def ModelPkl0(Table, Table_NW):
+        monop = 0;
+        for ii in range(Nx):
+            monop = monop + 0.5/(qperp**2 * qpar)*wGL[ii]*PIRs(kev, xGL[ii], Table, Table_NW)
+        return monop
+
+    def ModelPkl2(Table, Table_NW):    
+        quadrup = 0;
+        for ii in range(Nx):
+            quadrup = quadrup + 5/(2*qperp**2 * qpar)*wGL[ii]*PIRs(kev, xGL[ii], Table, Table_NW)*eval_legendre(2, xGL[ii])
+        return quadrup
+
+    def ModelPkl4(Table, Table_NW):
+        hexadecap = 0;
+        for ii in range(Nx):
+            hexadecap = hexadecap + 9/(2*qperp**2 * qpar)*wGL[ii]*PIRs(kev, xGL[ii], Table, Table_NW)*eval_legendre(4, xGL[ii])
+        return hexadecap
     
-    
-    if AP == True:
-        
-        Nx = 6                                         #Points
-        xGL, wGL = scipy.special.roots_legendre(Nx)    #x=cosθ and weights
-        
-        def ModelPkl0(Table, Table_NW):
-            monop = 0;
-            for ii in range(Nx):
-                monop = monop + 0.5/(qperp**2 * qpar)*wGL[ii]*PIRs(kev, xGL[ii], Table, Table_NW)
-            return monop
-        
-        def ModelPkl2(Table, Table_NW):    
-            quadrup = 0;
-            for ii in range(Nx):
-                quadrup = quadrup + 5/(2*qperp**2 * qpar)*wGL[ii]*PIRs(kev, xGL[ii], Table, Table_NW)*eval_legendre(2, xGL[ii])
-            return quadrup
-        
-        def ModelPkl4(Table, Table_NW):
-            hexadecap = 0;
-            for ii in range(Nx):
-                hexadecap = hexadecap + 9/(2*qperp**2 * qpar)*wGL[ii]*PIRs(kev, xGL[ii], Table, Table_NW)*eval_legendre(4, xGL[ii])
-            return hexadecap
-    
-    else:
-        
-        Nx = 6                                         #Points
-        xGL, wGL = scipy.special.roots_legendre(Nx)    #x=cosθ and weights
-        
-        def ModelPkl0(Table, Table_NW):
-            monop = 0;
-            for ii in range(Nx):
-                monop = monop + 0.5*wGL[ii]*PIRs(kev, xGL[ii], Table, Table_NW)
-            return monop
-        
-        def ModelPkl2(Table, Table_NW):    
-            quadrup = 0;
-            for ii in range(Nx):
-                quadrup = quadrup + 5/2*wGL[ii]*PIRs(kev, xGL[ii], Table, Table_NW)*eval_legendre(2, xGL[ii])
-            return quadrup
-        
-        def ModelPkl4(Table, Table_NW):
-            hexadecap = 0;
-            for ii in range(Nx):
-                hexadecap = hexadecap + 9/2*wGL[ii]*PIRs(kev, xGL[ii], Table, Table_NW)*eval_legendre(4, xGL[ii])
-            return hexadecap
+
         
     
     Pkl0 = ModelPkl0(TableOut_interp(kev), TableOut_NW_interp(kev));
@@ -1272,7 +1247,7 @@ def RSDmultipoles(kev, NuisanParams, Omfid = -1, AP = False):
 
 
 
-def RSDmultipoles_marginalized_const(kev, NuisanParams, Omfid = -1, AP = False, Hexa = False):
+def RSDmultipoles_marginalized_const(kev, NuisanParams, qpar,qperp, Hexa = False):
     '''Redshift space power spectrum multipoles 'const': Pℓ,const 
       (α->0, marginalizing over the EFT and stochastic parameters).
     
@@ -1301,21 +1276,8 @@ def RSDmultipoles_marginalized_const(kev, NuisanParams, Omfid = -1, AP = False, 
     remove_DeltaP=False    #change to True for TNS
     Winfty_all=False       #change to False for TNS and no analytical marginalization
     
-    if AP == True and Omfid == -1:
-        sys.exit("Introduce the fiducial value of the dimensionless matter density parameter as ‘Omfid = value’.")
-     
-    if AP == True and Omfid > 0:
-                
 
-
-        if (z_pk==0):
-            sys.exit("qperp is not defined at z=0")            
-            
-        OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
-        
-        qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
-        qpar = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
-        
+    AP = True   
         
     def PIRs_const(kev, mu, Table, Table_NW):
         
@@ -1325,35 +1287,23 @@ def RSDmultipoles_marginalized_const(kev, NuisanParams, Omfid = -1, AP = False, 
         NuisanParams_const = (b1, b2, bs2, b3nl, alpha0, alpha2, alpha4, 
                               ctilde, alphashot0, alphashot2, PshotP, X_FoG_pk)
         
+            
+        k_true = k_AP(kev, mu, qperp, qpar)
+        mu_true = mu_AP(mu, qperp, qpar)
+
+        Table_true = Table_interp(k_true, kev, Table)
+        Table_NW_true = Table_interp(k_true, kev, Table_NW)
+
+        Sigma2T = Sigma2Total(k_true, mu_true, Table_NW_true)
+
+        Fkoverf0 = Table_true[1]; fk = Fkoverf0*f0
+        pkl = Table_true[0]; pkl_NW = Table_NW_true[0];
+
+
+        return ((b1 + fk * mu_true**2)**2 * (pkl_NW + np.exp(-k_true**2 * Sigma2T)*(pkl-pkl_NW)*(1 + k_true**2 * Sigma2T) )
+            + np.exp(-k_true**2 * Sigma2T)*PEFTs(k_true, mu_true, NuisanParams_const, Table_true) 
+            + (1 - np.exp(-k_true**2 * Sigma2T))*PEFTs(k_true, mu_true, NuisanParams_const, Table_NW_true))
         
-        if AP == True:
-            
-            k_true = k_AP(kev, mu, qperp, qpar)
-            mu_true = mu_AP(mu, qperp, qpar)
-            
-            Table_true = Table_interp(k_true, kev, Table)
-            Table_NW_true = Table_interp(k_true, kev, Table_NW)
-            
-            Sigma2T = Sigma2Total(k_true, mu_true, Table_NW_true)
-            
-            Fkoverf0 = Table_true[1]; fk = Fkoverf0*f0
-            pkl = Table_true[0]; pkl_NW = Table_NW_true[0];
-            
-            
-            return ((b1 + fk * mu_true**2)**2 * (pkl_NW + np.exp(-k_true**2 * Sigma2T)*(pkl-pkl_NW)*(1 + k_true**2 * Sigma2T) )
-                + np.exp(-k_true**2 * Sigma2T)*PEFTs(k_true, mu_true, NuisanParams_const, Table_true) 
-                + (1 - np.exp(-k_true**2 * Sigma2T))*PEFTs(k_true, mu_true, NuisanParams_const, Table_NW_true))
-        
-        
-        else:
-            
-            k = kev; Fkoverf0 = Table[1]; fk = Fkoverf0*f0
-            pkl = Table[0]; pkl_NW = Table_NW[0];
-            Sigma2T = Sigma2Total(kev, mu, Table_NW)
-            
-            return ((b1 + fk * mu**2)**2 * (pkl_NW + np.exp(-k**2 * Sigma2T)*(pkl-pkl_NW)*(1 + k**2 * Sigma2T) )
-                + np.exp(-k**2 * Sigma2T)*PEFTs(k, mu, NuisanParams_const, Table) 
-                + (1 - np.exp(-k**2 * Sigma2T))*PEFTs(k, mu, NuisanParams_const, Table_NW))
         
         
     Nx = 6                                         #Points
@@ -1365,7 +1315,7 @@ def RSDmultipoles_marginalized_const(kev, NuisanParams, Omfid = -1, AP = False, 
             return monop
         else:
             monop = sum(0.5*wGL[ii]*PIRs_const(kev, xGL[ii], Table, Table_NW) for ii in range(Nx))
-            return monop
+        return monop
         
         
     def ModelPkl2_const(Table, Table_NW):    
@@ -1427,7 +1377,7 @@ def PEFTs_derivatives(k, mu, pkl, PshotP):
 
 
 
-def RSDmultipoles_marginalized_derivatives(kev, NuisanParams, Omfid = -1, AP = False, Hexa = False):
+def RSDmultipoles_marginalized_derivatives(kev, NuisanParams, qpar, qperp, Hexa = False):
     '''Redshift space power spectrum multipoles 'derivatives': Pℓ,i=∂Pℓ/∂α_i 
       (derivatives with respect to the EFT and stochastic parameters).
     
@@ -1454,21 +1404,8 @@ def RSDmultipoles_marginalized_derivatives(kev, NuisanParams, Omfid = -1, AP = F
     
     remove_DeltaP=False    #change to True for TNS
     
-    if AP == True and Omfid == -1:
-        sys.exit("Introduce the fiducial value of the dimensionless matter density parameter as ‘Omfid = value’.")
-     
-    if AP == True and Omfid > 0:
-                
-        if (z_pk==0):
-            sys.exit("qperp is not defined at z=0")
-            
-        OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
-        
-        qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
-        qpar = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
-        
-        if (z_pk==0):
-            sys.exit("qperp is not defined at z=0")
+    AP =True
+
         
     
     def PIRs_derivatives(kev, mu, Table, Table_NW):
@@ -1953,6 +1890,18 @@ def bispectrum_full(k1, k2, x12, mu1, phi, f, sigma2v, Sigma2, deltaSigma2, bisp
 
 
 
+def angdep_integrands(x,mu,phi,cosphi,cos2phi):
+    
+    Pi=np.pi    
+    b000 = np.asarray(1/ (8*Pi))
+    b110 = np.asarray((-3*np.sqrt(3)*x) / (8*Pi))
+    b220 = np.asarray(5*np.sqrt(5)/ (16*Pi) * (-1.0 + 3*x**2))
+    b202 = np.asarray(5*np.sqrt(5)/ (16*Pi) * (-1.0 + 3.0 * mu**2)  )  
+    b022 = np.asarray((5*np.sqrt(5)*((-1 + 3*mu**2)*(-1 + 3*x**2) + 12*mu*np.sqrt(1 - mu**2)*x*np.sqrt(1 - x**2)*cosphi + 3*(-1 + mu**2)*(-1 + x**2)*cos2phi))/(32.*Pi))    
+    b112 = np.asarray((3*np.sqrt(2.5)*(np.sqrt(3)*(-1 + 3*mu**2)*x + 6*mu*np.sqrt(1 - mu**2)*np.sqrt(1 - x**2)*np.cos(phi)))/(8.*Pi))
+    
+    return b000, b110, b220, b202, b022, b112
+
 
 
 def Sugiyama_Bl1l2L(k1k2pairs, bisp_nuis_params, bisp_cosmo_params, qpar, qperp, k_pkl_pklnw, 
@@ -1970,11 +1919,24 @@ def Sugiyama_Bl1l2L(k1k2pairs, bisp_nuis_params, bisp_cosmo_params, qpar, qperp,
     tablesGL = tablesGL_f(precision)
     sigma2v, Sigma2, deltaSigma2 = sigmas(k_pkl_pklnw[0],k_pkl_pklnw[1])
     
-    OmM,h=bisp_cosmo_params
+    z_bk,OmM,h=bisp_cosmo_params
     
     if f==None:
-        f = f0_function(z_pk,OmM);
+        f = f0_function(z_bk,OmM);
+       
 
+     
+#     if AP == True and Omfid > 0:
+                    
+#         if (z_pk==0):
+#             sys.exit("qperp is not defined at z=0")
+            
+#         OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
+        
+#         qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
+#         qpar = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
+        
+        
     phiGL, xGL, muGL = tablesGL
     phi, wphi = phiGL[:,0], phiGL[:,1]
     x,   wx   = xGL[:,0],  xGL[:,1]
@@ -1985,9 +1947,13 @@ def Sugiyama_Bl1l2L(k1k2pairs, bisp_nuis_params, bisp_cosmo_params, qpar, qperp,
     mu_mesh = mu[None,:,None][None,:,:,:]
     phi_mesh= phi[None,None,:][None,:,:,:]
     
-    print(interpolation_method)
+    cosphi_mesh=np.cos(phi_mesh)    
+    cos2phi_mesh=np.cos(2*phi_mesh)
 
-    # Evaluate full bispectrum for each pair
+    Nx,Nmu,Nphi=len(x),len(mu),len(phi)
+
+#     print(interpolation_method)
+
     bisp = bispectrum_full(
         k1, k2, x_mesh, mu_mesh, phi_mesh,
         f, sigma2v, Sigma2, deltaSigma2,
@@ -1995,46 +1961,50 @@ def Sugiyama_Bl1l2L(k1k2pairs, bisp_nuis_params, bisp_cosmo_params, qpar, qperp,
         interpolation_method
     )   # shape (N, Nx, Nμ, Nφ)
 
-    # Integrate over φ
-    int_phi = 2 * np.sum(bisp * wphi[None,None,None,:], axis=3)   # → (N,Nx,Nμ)
-
-    # Integrate B000
-    int_mu  = np.sum(int_phi * wmu[None,None,:], axis=2)          # → (N,Nx)
-    B000    = np.sum(int_mu * wx[None,:], axis=1) / (8*Pi)     # → (N,)
-
-    # Integrate B110
-    b110_integrand = (-3*np.sqrt(3)*x) / (8*Pi)
-    B110 = np.sum(int_mu * wx[None,:] * b110_integrand[None,:], axis=1)     # → (N,)
-
-    # Integrate B220
-    b220_integrand = 5*np.sqrt(5)/ (16*Pi) * (-1.0 + 3*x**2)
-    B220 = np.sum(int_mu * wx[None,:] * b220_integrand[None,:], axis=1)     # → (N,)
-
-    # Integrate B202
-    b202_integrand = 5*np.sqrt(5)/ (16*Pi) * (-1.0 + 3.0 * mu**2)
-    # B202 = np.sum(int_mu * wx[None,:] * b202[None,:], axis=1)     # → (N,)   
-    int_mu_B202  = np.sum(int_phi * wmu[None,None,:] *  b202_integrand[None,None,:], axis=2) # → (N,Nx)
-    B202 = np.sum(int_mu_B202 * wx[None,:], axis=1)     # → (N,)
     
-    b404_integrand= (81.0 - 810.0*mu**2 + 945.0*mu**4)/(64.*Pi)   
-    int_mu_B404  = np.sum(int_phi * wmu[None,None,:] *  b404_integrand[None,None,:], axis=2) # → (N,Nx)
-    B404 = np.sum(int_mu_B404 * wx[None,:], axis=1)     # → (N,) 
-
-    if renormalize:
+    adi= angdep_integrands(x_mesh,mu_mesh,phi_mesh,cosphi_mesh,cos2phi_mesh)
+    b000_integrand, b110_integrand, b220_integrand,b202_integrand, b022_integrand, b112_integrand = adi
     
-        H202 =  1/np.sqrt(5)
-        H110 = -1/np.sqrt(3)
-        H220 =  1/np.sqrt(5)
-        H112 =  np.sqrt(2.0/15.0)
-        H404 =  1.0/3.0
+    b000 = b000_integrand.reshape(1,1,1,1)
 
-        B110 = H110 * B110 
-        B220 = H220 * B220 
-        B202 = H202 * B202 
-        # B112 = H112 * B112 
-        B404 = H404 * B404
+    b110 = b110_integrand.reshape(1, Nx, 1, 1)
+    b220 = b220_integrand.reshape(1, Nx, 1, 1)
+
+    b202 = b202_integrand.reshape(1, 1, Nmu, 1)
+
+    b022 = b022_integrand.reshape(1, Nx, Nmu, Nphi)
+    b112 = b112_integrand.reshape(1, Nx, Nmu, Nphi)
+
     
-    return B000, B110, B220, B202, B404
+    bl1l2L_integrand = [b000,b110,b220,b202,b022,b112]
+
+    H000,H110,H220,H202,H022,H112 = 1,-1/np.sqrt(3), 1/np.sqrt(5),1/np.sqrt(5),1/np.sqrt(5),np.sqrt(2/15)
+    
+    H404 =  1.0/3.0
+
+    Hl1l2L = [H000,H110,H220,H202,H022,H112]
+    
+    Bl1l2L=[]
+    n=0
+    for integrand in bl1l2L_integrand:
+        int_phi = 2 * np.sum(bisp * integrand * wphi[None,None,None,:], axis=3)   # → (N,Nx,Nμ)
+        int_mu  = np.sum(int_phi * wmu[None,None,:], axis=2)   # → (N,Nx)
+        int_all = np.sum(int_mu * wx[None,:],  axis=1)
+        if renormalize:
+            int_all*=Hl1l2L[n]
+        Bl1l2L.append(int_all)    
+        n+=1
+        
+    Bl1l2L = np.array(Bl1l2L) 
+    
+    return Bl1l2L
+
+
+
+
+
+
+
 
 
 #These are GL pairs [[x1,w1],[x2,w2],....]. We should compute them here
@@ -2135,20 +2105,19 @@ def Scoccimarro_B024(k1, k2, x, f, sigma2v, Sigma2, deltaSigma2, bisp_nuis_param
      
     return B0, B2, B4
 
-def Bisp_Scoccimarro_all(bisp_cosmo_params, bisp_nuis_params, k_pkl_pklnw, z_pk, 
-                  k1k2k3triplets, Omfid=-1,precision=[10,10]):
 
-    OmM, h = bisp_cosmo_params
 
-    qperp, qpar = 1, 1
 
-    if Omfid > 0:
-        qperp = DA(OmM, z_pk)/DA(Omfid, z_pk) 
-        qpar  = Hubble(Omfid, z_pk)/Hubble(OmM, z_pk) 
-        #Om computed for any cosmology
-        #OmM = CosmoParam(h, omega_b, omega_cdm, omega_ncdm)[1]
 
-    f = f0_function(z_pk,OmM);
+
+
+def Bisp_Scoccimarro_all(bisp_cosmo_params, bisp_nuis_params, k_pkl_pklnw, 
+                  k1k2k3triplets, qpar,qperp, f=None, precision=[10,10]):
+
+    z_pk, OmM, h = bisp_cosmo_params
+
+    if f==None:
+        f = f0_function(z_pk,OmM);
 
     kT=k_pkl_pklnw[0]
     pklT=k_pkl_pklnw[1]
