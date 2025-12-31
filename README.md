@@ -53,6 +53,7 @@ Attribution
 
 Please cite <https://arxiv.org/abs/2208.02791> if you find this code useful in your research. We encourage you to cite also <https://arxiv.org/abs/2106.13771>.
 
+<!--
 @article{Noriega:2022nhf,
     author = "Noriega, Hern{\'a}n E. and Aviles, Alejandro and Fromenteau, Sebastien and Vargas-Maga{\~n}a, Mariana",
     title = "{Fast computation of non-linear power spectrum in cosmologies with massive neutrinos}",
@@ -79,3 +80,4 @@ Please cite <https://arxiv.org/abs/2208.02791> if you find this code useful in y
     pages = "028",
     year = "2021"
 }
+-->
