@@ -1,0 +1,4 @@
+delta_aiso	\frac{D_{V}/ r_d}{D'_{V}/r'_d} \alpha_{\rm iso} - \alpha'_{\rm iso}
+delta_aap	\frac{D'_{A}H'}{D_{A} H} \alpha_{\rm AP} - \alpha'_{\rm AP}
+delta_apar	\frac{H'r_d'}{Hr_d} \alpha_\parallel- \alpha'_\parallel
+delta_aper	\frac{D_{A}/ r_d}{D'_{A}/r'_d} \alpha_\perp - \alpha'_\perp

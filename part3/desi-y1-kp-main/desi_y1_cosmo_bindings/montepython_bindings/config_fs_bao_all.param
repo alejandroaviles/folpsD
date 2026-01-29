@@ -1,0 +1,89 @@
+#------Experiments to test (separated with commas)-----
+
+# valid options are (so far): acbar, bicep, boomerang, cbi,
+# hst, quad, sn, spt, fake_planck_bluebook,
+# euclid_pk, euclid_lensing
+# and clik_fake_planck (for Planck members)
+
+data.experiments = ['desi_fs_bao_all']
+
+#------ Parameter list -------
+# data.parameters[class name] = [mean, min, max, 1-sigma, scale, role]
+# - if min max irrelevant, put to -1 or None (if you want a boundary of -1, use -1.0)
+# - if fixed, put 1-sigma to 0
+# - if scale irrelevant, put to 1, otherwise to the appropriate factor
+# - role is either 'cosmo', 'nuisance' or 'derived'
+
+
+# Cosmological parameters list
+data.parameters['Omega_cdm']  = [0.264, 0.01, 0.9, 0.006, 1., 'cosmo']
+data.parameters['Omega_b']  = [0.049, 0.001, 0.3, 0.0006, 1., 'cosmo']
+data.parameters['H0']       = [67.36, 20., 100., 0.5, 1., 'cosmo']
+data.parameters['A_s']      = [2.083e-09, 1e-09, 3e-09, 0., 1., 'cosmo']
+data.parameters['n_s']      = [0.9649, 0.9, 1.0, 0., 1., 'cosmo']
+data.parameters['tau_reio'] = [0.0544, 0.02, 0.1, 0., 1., 'cosmo']
+
+data.cosmo_arguments['k_pivot'] = 0.05
+
+# The base model features two massless
+# and one massive neutrino with m=0.06eV.
+# The settings below ensures that Neff=3.046
+# and m/omega = 93.14 eV
+data.cosmo_arguments['N_ur'] = 2.0328
+data.cosmo_arguments['N_ncdm'] = 1
+data.cosmo_arguments['m_ncdm'] = 0.06
+data.cosmo_arguments['T_ncdm'] = 0.71611
+
+# Nuisance
+
+data.parameters['pre_QSO_z0_b1p'] = [0.8450827448340568, 0.0, 3.0, 0.1, 1.0, 'nuisance']
+data.parameters['pre_QSO_z0_b2p'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_QSO_z0_bsp'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_QSO_z0_b3p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_QSO_z0_alpha4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_QSO_z0_alpha6p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_QSO_z0_sn4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_ELG_z1_b1p'] = [0.5160887812270373, 0.0, 3.0, 0.1, 1.0, 'nuisance']
+data.parameters['pre_ELG_z1_b2p'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_ELG_z1_bsp'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_ELG_z1_b3p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_ELG_z1_alpha4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_ELG_z1_alpha6p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_ELG_z1_sn4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z2_b1p'] = [1.017230940206759, 0.0, 3.0, 0.1, 1.0, 'nuisance']
+data.parameters['pre_LRG_z2_b2p'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z2_bsp'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z2_b3p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z2_alpha4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z2_alpha6p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z2_sn4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z1_b1p'] = [1.1227984779619817, 0.0, 3.0, 0.1, 1.0, 'nuisance']
+data.parameters['pre_LRG_z1_b2p'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z1_bsp'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z1_b3p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z1_alpha4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z1_alpha6p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z1_sn4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z0_b1p'] = [1.236654858870998, 0.0, 3.0, 0.1, 1.0, 'nuisance']
+data.parameters['pre_LRG_z0_b2p'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z0_bsp'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z0_b3p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z0_alpha4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z0_alpha6p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_LRG_z0_sn4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_BGS_z0_b1p'] = [1.0359800845412817, 0.0, 3.0, 0.1, 1.0, 'nuisance']
+data.parameters['pre_BGS_z0_b2p'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_BGS_z0_bsp'] = [0.0, None, None, 1.0, 1.0, 'nuisance']
+data.parameters['pre_BGS_z0_b3p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_BGS_z0_alpha4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_BGS_z0_alpha6p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+data.parameters['pre_BGS_z0_sn4p'] = [0.0, None, None, 0.0, 1.0, 'nuisance']
+
+# Derived parameter list
+
+#------ Mcmc parameters ----
+# Number of steps taken, by default (overwritten by the -N command)
+data.N = 100000
+# Number of accepted steps before writing to file the chain. Larger means less
+# access to disc, but this is not so much time consuming.
+data.write_step = 5

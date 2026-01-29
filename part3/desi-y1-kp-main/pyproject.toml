@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "desi-y1-kp"
+authors = [{name="cosmodesi"}]
+description = "End-to-end standard analysis for DESI Y1"
+version = "0.1.0"
+dependencies = ["numpy", "matplotlib"]
+readme = "README.md"
+requires-python = ">=3.7"
+urls = {Repository = "https://github.com/cosmodesi/desi-y1-kp"}
+classifiers = ["Programming Language :: Python :: 3"]
+
+[tool.setuptools]
+packages = ["desi_y1_plotting", "desi_y1_files"]

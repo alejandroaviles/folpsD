@@ -1,0 +1,6 @@
+**/*data*
+**/_chain*
+**/bak*
+**/cobaya_likelihoods/fs_bao_likelihoods_exact*
+**/cobaya_likelihoods/fs_bao_likelihoods_test*
+*.yaml
