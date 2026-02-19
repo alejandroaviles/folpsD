@@ -3269,6 +3269,93 @@ class WindowConvolvedBispectrum:
         )
 
     
+    def reduced_Bl1l2L(
+        self,
+        bisp_nuis_params,
+        bisp_cosmo_params,
+        qpar,
+        qperp,
+        k_pkl_pklnw,
+        k_window,
+        Ssize,
+        precision_full=[8, 10, 10],
+        precision_diag=[8, 10, 10],
+        f=0.0,
+        renormalize=True,
+        interpolation_method_full="linear",
+        interpolation_method_diag="cubic",
+        use_full_diag=True,
+        get_windowed=True,
+        damping="lor",
+        bias_scheme='folps',  #Mod Dic 22
+    ):
+        k_ev = np.logspace(
+            np.log10(k_window[0]), np.log10(k_window[-1]), num=Ssize
+        )
+
+        bispectrum = BispectrumCalculator(model=self.model)
+
+        grids = self._compute_2D_grids(
+            bispectrum,
+            k_ev,
+            bisp_nuis_params,
+            f,
+            qpar,
+            qperp,
+            k_pkl_pklnw,
+            precision_full,
+            renormalize,
+            damping,
+            interpolation_method_full,
+            bias_scheme,  #Mod Dic 22
+        )
+
+        interp = {}
+        for key in ["B000", "B110", "B220", "B202", "B022", "B112"]:
+            spline = RectBivariateSpline(k_ev, k_ev, grids[key], kx=3, ky=3)
+            interp[key] = spline(k_window, k_window)
+
+        if not get_windowed:
+            return interp["B000"].diagonal(), interp["B202"].diagonal()
+
+        if use_full_diag:
+            k_diag = np.column_stack([k_window, k_window])
+            Bkdiag = bispectrum.Sugiyama_Bl1l2L(
+                k_diag,
+                f,
+                bisp_nuis_params,
+                qpar,
+                qperp,
+                k_pkl_pklnw=k_pkl_pklnw,
+                precision=precision_diag,
+                renormalize=renormalize,
+                damping=damping,
+                interpolation_method=interpolation_method_diag,
+                bias_scheme=bias_scheme,  #Mod Dic 22
+            )
+
+            B000d, B110d, B220d, B202d, B022d, B112d = Bkdiag
+            np.fill_diagonal(interp["B000"], B000d)
+            np.fill_diagonal(interp["B110"], B110d)
+            np.fill_diagonal(interp["B220"], B220d)
+            np.fill_diagonal(interp["B202"], B202d)
+            np.fill_diagonal(interp["B022"], B022d)
+            np.fill_diagonal(interp["B112"], B112d)
+            
+            
+        Bl1l2L_reduced = np.array([interp["B000"],
+                interp["B110"],
+                interp["B220"],
+                interp["B112"],
+                interp["B202"]]
+                                 )
+
+
+        return Bl1l2L_reduced
+
+
+
+    
 def interpolation_l(k_out, k_in, pk_in, method='cubic'):
     """Interpolation function
 
