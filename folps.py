@@ -1,6 +1,7 @@
 # ============================================================================================ #
 #                                             FOLPS                                            #
 # ============================================================================================ #
+#     Fast Optimized Large-scale structure Perturbation Solver (FOLPS)                         #
 #     Fast and Efficient Computation of the Redshift-Space Power Spectrum and Bispectrum       #
 #     in LCDM and Cosmological Models with Massive Neutrinos and Modified Gravity Theories     #
 # ============================================================================================ #
