@@ -12,7 +12,7 @@ FOLPS computes the galaxy power spectrum and bispectrum (Sugiyama and Scocimarro
 [![arXiv](https://img.shields.io/badge/arXiv-2208.02791-red)](https://arxiv.org/abs/2208.02791)
 
 
-## Developers: 
+## Authors: 
 - [Hernán E. Noriega](mailto:henoriega@estudiantes.fisica.unam.mx)
 - [Alejandro Aviles](mailto:avilescervantes@gmail.com)
 
