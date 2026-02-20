@@ -5,7 +5,7 @@
 
 # FOLPS 
 
-## (This is version 2. FOLPS-v1 is located at the [original link](https://github.com/alejandroaviles/folpsD/tree/folpsD_v1) or [here](https://github.com/alejandroaviles/folpsD/tree/folps-nu). FolpsD-v1 is [here](https://github.com/alejandroaviles/folpsD/tree/folpsD_v1))
+## (This is version 2. FOLPS-v1 is located at [here](https://github.com/alejandroaviles/folpsD/tree/folpsD_v1) or [here](https://github.com/alejandroaviles/folpsD/tree/folps-nu).
 
 FOLPS computes the galaxy power spectrum and bispectrum (Sugiyama and Scocimarro basis) for cosmologies in the presence of massive neutrinos. This version can be ran with numpy or JAX (see also [Folpsax](https://github.com/cosmodesi/folpsax) for jax with FOLPS-v1)
 
@@ -81,3 +81,10 @@ Please cite <https://arxiv.org/abs/2208.02791> if you find this code useful in y
     year = "2021"
 }
 -->
+
+
+## Acknowledgements: 
+
+-This code was financially supported by grants UNAM PAPIIT IA101825 and SECIHTI CBF2023-2024-162.
+
+
