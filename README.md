@@ -43,10 +43,10 @@ or install via pip by:
 pip install git+https://github.com/henoriega/FOLPS-nu
 ```
 -->
-https://github.com/alejandroaviles/folpsD/blob/main/notebooks/example_detailed.ipynb
+
 Once everything is ready, please check the [Jupyter Notebook]([https://github.com/alejandroaviles/folpsD/blob/main/notebooks/example_detailed.ipynb](https://github.com/alejandroaviles/folpsD/blob/main/notebooks/example_detailed.ipynb) which contains some helpful examples. 
 
-
+Once everything is ready, please check the [Jupyter Notebook](https://github.com/alejandroaviles/folpsD/blob/main/notebooks/example_detailed.ipynb) which contains some helpful examples. 
 
 Attribution
 -----------
